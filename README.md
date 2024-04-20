@@ -1,6 +1,6 @@
-# YouTube Data Harvesting and Warehousing
+# GUVI Capstone Project 1
 
-GUVI Capstone Project 1: YouTube Data Harvesting and Warehousing using SQL and Streamlit.
+YouTube Data Harvesting and Warehousing using SQL and Streamlit.
 
 ## Problem Statement:
   
