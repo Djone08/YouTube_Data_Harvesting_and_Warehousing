@@ -14,8 +14,8 @@ def on_search(_txt: str):
     _df.to_csv('temp.csv', index=False)
 
 
-def set_row(_data: pd.Series, cont: st.delta_generator.DeltaGenerator):
-    with cont:
+def set_row(_data: pd.Series, _cont: st.delta_generator.DeltaGenerator):
+    with _cont:
         c1, c2, c3 = st.columns([.1, .2, .7])
         with c1:
             ''
