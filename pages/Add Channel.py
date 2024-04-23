@@ -113,4 +113,4 @@ with t2:
         time.sleep(1)
         status.update(label="Download complete!", state="complete", expanded=False)
     time.sleep(1)
-    em.empty()
+    # em.empty()
