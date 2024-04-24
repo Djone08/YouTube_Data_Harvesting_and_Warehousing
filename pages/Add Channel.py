@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+# from streamlit import errors as st_er
 from About import YTAPI
 
 
@@ -19,6 +20,8 @@ def set_row(_data: pd.Series, _cont: st.delta_generator.DeltaGenerator):
         with c1:
             ''
             ''
+            btn_em = st.empty()
+            btn = btn_em.button('Add', key=f'{_data.channelId}', disabled=_data.check)
         with c2:
             st.write(f'''<p>
             <img src="{_data.logo}"
@@ -28,19 +31,20 @@ def set_row(_data: pd.Series, _cont: st.delta_generator.DeltaGenerator):
         with c3:
             st.write(f'### {_data.channelTitle}')
             st.caption(f'{_data.description}')
+        em = st.empty()
         st.divider()
-        return c1.checkbox(f'cb_{_data.channelTitle}', label_visibility='collapsed')
+        return {'check': btn, 'state': em, }
 
 
 api_key = 'AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'
 channel_id = 'UCiEmtpFVJjpvdhsQ2QAhxVA'
 yt = YTAPI([api_key])
 
-t1, t2 = st.tabs(['Add Channel by Name', 'Add Channel by ID'])
+tab_1, tab_2 = st.tabs(['Add Channel by Name', 'Add Channel by ID'])
 if not st.session_state.get('chn_srh_hst'):
     st.session_state.update({'chn_srh_hst': {}})
 
-with t1:
+with tab_1:
     '# Channel Search'
 
     srh_txt = st.text_input(label='Search Bar', placeholder='Search', label_visibility='collapsed')
@@ -51,31 +55,36 @@ with t1:
     df = st.session_state.chn_srh_hst[srh_txt] if srh_txt in st.session_state.chn_srh_hst else pd.DataFrame()
 
     if not df.empty:
-        st.button('Get Channel Details')
+        filter_check = st.selectbox('Filter', ['All', 'In Library', 'Not In Library'])
+        f_df = df[df.check == (filter_check == 'In Library')] if filter_check != 'All' else df
+
         cont = st.container()
-        cb_df = df.apply(lambda x: set_row(x, cont), axis=1)
-        df['check'] = cb_df
+
+        cb_df = f_df.apply(lambda x: set_row(x, cont), axis=1, result_type='expand')
         cols = st.columns([.7, .2])
         cols[0].write('[Go Up :arrow_up:](#channel-search)')
         cols[1].button('See More...')
-        # print(df[cb_df])
+        # df.check = cb_df.check
+        df.update(cb_df[cb_df.check])
+        st.session_state.chn_srh_hst.update({srh_txt: df})
+        print(df)
 
-with t2:
+with tab_2:
     '# Add Channel by ID'
 
     ch_id = st.text_input(label='Channel ID', placeholder='Channel ID', label_visibility='collapsed').strip()
     id_chk = ch_id.replace('_', '0').replace('-', '0')
 
-    btn_col = st.columns([.1, .4, .5])
+    btn_col = st.columns([.1, .95])
 
     add_btn = btn_col[0].button(label='Add', disabled=not (id_chk.isalnum() and len(ch_id) == 24))
 
     with btn_col[1]:
         if ch_id and len(ch_id) != 24:
-            st.caption(':red[The Channel ID must be of 24 Characters]')
+            st.error(':red[The Channel ID must be of 24 Characters]')
         elif ch_id and not id_chk.isalnum():
-            st.caption(':red[The Channel ID con not Contain Spaces or '
-                       'Any other Special Characters except ( "_" , "-" )]')
+            st.error(':red[The Channel ID con not Contain Spaces or '
+                     'Any other Special Characters except ( "_" , "-" )]')
 
     if add_btn:
         data = yt.channel_list(ch_id)['items'][0]
