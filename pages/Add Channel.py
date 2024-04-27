@@ -67,8 +67,7 @@ def add_channel(_data: pd.Series, _state: DeltaGenerator):
 api_key = 'AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'
 channel_id = 'UCiEmtpFVJjpvdhsQ2QAhxVA'
 yt = YTAPI([api_key])
-pl_df = yt.get_playlists_df(channel_id)
-v_df = yt.get_videos_df(pl_df.index)
+
 tab_1, tab_2 = st.tabs(['Add Channel by Name', 'Add Channel by ID'])
 if not st.session_state.get('chn_srh_hst'):
     st.session_state.update({'chn_srh_hst': {}})

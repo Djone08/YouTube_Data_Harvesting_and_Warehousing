@@ -85,6 +85,17 @@ class YTAPI(object):
             except Exception as e:
                 print(e)
 
+    def get_channels_df(self, _channel_id):
+        res = self.channel_list(_channel_id)
+
+        _df = pd.DataFrame(res['items'])
+        es = '''{'channelId': _x.id, 'thumbnails': _x.snippet['thumbnails']['default']['url'],
+        'title': _x.snippet['title'], 'description': _x.snippet['description'],
+        'subscriberCount': _x.statistics['subscriberCount'], 'viewCount': _x.statistics['viewCount'],
+        videoCount: _x.statistics['videoCount']}'''
+        df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
+        return df.set_index('channelId')
+
     def get_playlists_df(self, _channel_id: str):
         res = self.playlists_list(_channel_id)
 
@@ -128,10 +139,10 @@ class YTAPI(object):
         v_df = v_df[~v_df.index.duplicated()]
 
         _ = [data.extend(self.videos_list(','.join(v_df.index[i:i+50]))['items']) for i in range(0, len(v_df), 50)]
-        df = pd.DataFrame(data).apply(lambda _x: eval(es), axis=1, result_type='expand').set_index('videoId')
-        df.playlistId = v_df.loc[df.index]
+        df = pd.DataFrame(data).apply(lambda _x: eval(es), axis=1, result_type='expand')
+        df.playlistId = v_df.loc[df.videoId].playlistId.values
 
-        return df
+        return df.set_index('videoId')
 
 
 if __name__ == '__main__':
