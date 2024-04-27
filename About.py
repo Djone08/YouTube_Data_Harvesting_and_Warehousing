@@ -16,20 +16,62 @@ class YTAPI(object):
 
     def search_list(self, text: str,
                     typ: Literal['channel', 'playlist', 'video'] = 'channel'):
-        _res = self.yt_apis[0].search().list(
-            part='snippet',
-            # fields='nextPageToken,prevPageToken,items(snippet(channelId,thumbnails(default),channelTitle))',
-            type=typ,
-            maxResults=50,
-            q=text).execute()
-        return _res
+        for _yt in self.yt_apis:
+            try:
+                _res = self.yt_apis[0].search().list(
+                    part='snippet',
+                    type=typ,
+                    maxResults=50,
+                    q=text).execute()
+                return _res
+            except Exception as e:
+                print(e)
 
     def channel_list(self, _channel_id: str):
-        _res = self.yt_apis[0].channels().list(
-            part='snippet,contentDetails,statistics',
-            # fields='nextPageToken,prevPageToken,items(snippet(channelId,thumbnails(default),channelTitle))',
-            id=_channel_id).execute()
-        return _res
+        for _yt in self.yt_apis:
+            try:
+                _res = _yt.channels().list(
+                    part='snippet,contentDetails,statistics',
+                    # fields='nextPageToken,prevPageToken,items(snippet(channelId,thumbnails(default),channelTitle))',
+                    id=_channel_id).execute()
+                return _res
+            except Exception as e:
+                # self.yt_apis.remove(_yt)
+                print(e)
+
+    def playlists_list(self, _channel_id: str, _page_token: str | None = None):
+        for _yt in self.yt_apis:
+            try:
+                _res = _yt.playlists().list(
+                    part='snippet, contentDetails',
+                    pageToken=_page_token,
+                    maxResults=50,
+                    channelId=_channel_id)
+                return _res
+            except Exception as e:
+                print(e)
+
+    def playlist_items_list(self, _playlist_id: str, _page_token: str | None = None):
+        for _yt in self.yt_apis:
+            try:
+                _res = _yt.playlistItems().list(
+                    part='snippet,contentDetails',
+                    pageToken=_page_token,
+                    maxResults=50,
+                    playlistId=_playlist_id)
+                return _res
+            except Exception as e:
+                print(e)
+
+    def videos_list(self, _video_id: str):
+        for _yt in self.yt_apis:
+            try:
+                _res = _yt.channels().list(
+                    part='snippet,contentDetails,statistics',
+                    id=_video_id).execute()
+                return _res
+            except Exception as e:
+                print(e)
 
 
 if __name__ == '__main__':

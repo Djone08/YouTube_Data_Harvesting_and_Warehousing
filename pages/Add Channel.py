@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 # from streamlit import errors as st_er
+from streamlit.delta_generator import DeltaGenerator
 from About import YTAPI
 
 
@@ -14,26 +15,54 @@ def on_search(_txt: str):
     st.session_state.chn_srh_hst.update({_txt: _df})
 
 
-def set_row(_data: pd.Series, _cont: st.delta_generator.DeltaGenerator):
-    with _cont:
-        c1, c2, c3 = st.columns([.1, .2, .7])
-        with c1:
-            ''
-            ''
-            btn_em = st.empty()
-            btn = btn_em.button('Add', key=f'{_data.channelId}', disabled=_data.check)
-        with c2:
-            st.write(f'''<p>
-            <img src="{_data.logo}"
-            alt="logo" title="{_data.channelTitle}" style="border-radius:50%" />
-            </p>
-            ''', unsafe_allow_html=True)
-        with c3:
-            st.write(f'### {_data.channelTitle}')
-            st.caption(f'{_data.description}')
-        em = st.empty()
-        st.divider()
-        return {'check': btn, 'state': em, }
+def set_row(_data: pd.Series):
+    c1, c2, c3 = st.columns([.2, .2, .6])
+    with c1:
+        ''
+        ''
+        btn_em = st.empty()
+
+    with c2:
+        st.write(f'''<p>
+        <img src="{_data.logo}"
+        alt="logo" title="{_data.channelTitle}" style="border-radius:50%" />
+        </p>
+        ''', unsafe_allow_html=True)
+
+    with c3:
+        st.write(f'### {_data.channelTitle}')
+        st.caption(_data.description)
+
+    em = st.empty()
+
+    if _data.check:
+        btn_em.success('Added', icon='✅')
+        btn = False
+    else:
+        btn_state = st.session_state.get(_data.channelId) or False
+
+        # if btn_state:
+        #     st.session_state.update({_data.channelId: btn_state})
+        #     btn = True
+        # else:
+        #     btn = btn_em.button('Add', key=_data.channelId, disabled=btn_state,
+        #                         on_click=lambda: add_channel(_data, em))
+
+        btn = btn_em.button('Add', key=_data.channelId, disabled=btn_state,
+                            # on_click=lambda: add_channel(_data, em)
+                            )
+        btn = btn_state or btn
+
+    st.divider()
+    return {'check': btn, 'state': em}
+
+
+def add_channel(_data: pd.Series, _state: DeltaGenerator):
+    with _state.status('Adding Channel...') as s:
+        s.write('Downloading Data...')
+        print(yt.channel_list(_data.channelId))
+
+
 
 
 api_key = 'AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'
@@ -49,25 +78,25 @@ with tab_1:
 
     srh_txt = st.text_input(label='Search Bar', placeholder='Search', label_visibility='collapsed')
 
-    if st.button(label='Search', disabled=not srh_txt):
-        on_search(srh_txt)
+    st.button(label='Search', disabled=not srh_txt, on_click=lambda: on_search(srh_txt), type='primary')
 
     df = st.session_state.chn_srh_hst[srh_txt] if srh_txt in st.session_state.chn_srh_hst else pd.DataFrame()
-
     if not df.empty:
         filter_check = st.selectbox('Filter', ['All', 'In Library', 'Not In Library'])
         f_df = df[df.check == (filter_check == 'In Library')] if filter_check != 'All' else df
 
         cont = st.container()
+        with cont:
+            cb_df = f_df.apply(lambda x: set_row(x), axis=1, result_type='expand')
 
-        cb_df = f_df.apply(lambda x: set_row(x, cont), axis=1, result_type='expand')
-        cols = st.columns([.7, .2])
-        cols[0].write('[Go Up :arrow_up:](#channel-search)')
-        cols[1].button('See More...')
-        # df.check = cb_df.check
-        df.update(cb_df[cb_df.check])
-        st.session_state.chn_srh_hst.update({srh_txt: df})
-        print(df)
+        st.write('[Go Up :arrow_up:](#channel-search)')
+        # cols = st.columns([.7, .2])
+        # cols[0].write('[Go Up :arrow_up:](#channel-search)')
+        # cols[1].button('See More...', disabled=filter_check == 'In Library')
+        df[cb_df.check].apply(lambda x: add_channel(x, cb_df.state.loc[x.name]), axis=1)
+        # df.update(cb_df[cb_df.check])
+        # st.session_state.chn_srh_hst.update({srh_txt: df})
+        # print(df)
 
 with tab_2:
     '# Add Channel by ID'
