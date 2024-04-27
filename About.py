@@ -56,7 +56,8 @@ class YTAPI(object):
         for _yt in self.yt_apis:
             try:
                 _res = _yt.playlistItems().list(
-                    part='snippet,contentDetails',
+                    part='snippet,status',
+                    # fields='nextPageToken,items(snippet(resourceId(videoId)))',
                     pageToken=_page_token,
                     maxResults=50,
                     playlistId=_playlist_id).execute()
@@ -67,9 +68,19 @@ class YTAPI(object):
     def videos_list(self, _video_id: str):
         for _yt in self.yt_apis:
             try:
-                _res = _yt.channels().list(
+                _res = _yt.videos().list(
                     part='snippet,contentDetails,statistics',
                     id=_video_id).execute()
+                return _res
+            except Exception as e:
+                print(e)
+
+    def comment_threads_list(self, _channel_id: str):
+        for _yt in self.yt_apis:
+            try:
+                _res = _yt.commentThreads().list(
+                    part='id,replies,snippet',
+                    allThreadsRelatedToChannelId=_channel_id).execute()
                 return _res
             except Exception as e:
                 print(e)
@@ -78,9 +89,9 @@ class YTAPI(object):
         res = self.playlists_list(_channel_id)
 
         _df = pd.DataFrame(res['items'])
-        es = '''{"playlistId": _x.id, "channelId": _x.snippet["channelId"],
-        "thumbnails": _x.snippet["thumbnails"]["default"]["url"],"title": _x.snippet["title"],
-        "description": _x.snippet["description"],"itemCount": _x.contentDetails["itemCount"]}'''
+        es = '''{'playlistId': _x.id, 'channelId': _x.snippet['channelId'],
+        'thumbnails': _x.snippet['thumbnails']['default']['url'],'title': _x.snippet['title'],
+        'description': _x.snippet['description'],'itemCount': _x.contentDetails['itemCount']}'''
         df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
 
         while res.get('nextPageToken'):
@@ -88,28 +99,39 @@ class YTAPI(object):
             _df = pd.DataFrame(res['items'])
             df = pd.concat([df, _df.apply(lambda _x: eval(es), axis=1, result_type='expand')])
 
-        return df
+        return df.set_index('playlistId')
 
     def get_videos_df(self, _playlist_ids: iter):
-        es = '''{"videoId":_x.snippet["resourceId"]["videoId"],"playlistId": _x.snippet["playlistId"], "channelId": _x.snippet.get("channelId") or _x.snippet["videoOwnerChannelId"],
-        "thumbnails": _x.snippet["thumbnails"]["default"]["url"] if _x.snippet["thumbnails"] else None,"title": _x.snippet["title"],
-        "description": _x.snippet["description"]}'''
+        es = '''{'videoId': _x.id, 'playlistId': '', 'channelId': _x.snippet["channelId"],
+        'thumbnails': _x.snippet['thumbnails']['default']['url'], 'title': _x.snippet['title'],
+        'description': _x.snippet['description'], 'duration': _x.contentDetails['duration'],
+        'viewCount': _x.statistics['viewCount'], 'likeCount': _x.statistics['likeCount'],
+        'commentCount': _x.statistics.get('commentCount', 0)}'''
         data = []
+        v_ids = []
 
         for _playlist_id in _playlist_ids:
             res = self.playlist_items_list(_playlist_id)
             _df = pd.DataFrame(res['items'])
-            df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
+            df = _df.apply(lambda _x: {'videoId': _x.snippet['resourceId']['videoId'],
+                                       'playlistId': _x.snippet['playlistId']}, axis=1, result_type='expand')
 
             while res.get('nextPageToken'):
                 res = self.playlist_items_list(_playlist_id, res.get('nextPageToken'))
                 _df = pd.DataFrame(res['items'])
-                df = pd.concat([df, _df.apply(lambda _x: eval(es), axis=1, result_type='expand')])
+                df = _df.apply(lambda _x: {'videoId': _x.snippet['resourceId']['videoId'],
+                                           'playlistId': _x.snippet['playlistId']}, axis=1, result_type='expand')
 
-            data.append(df)
+            v_ids.append(df)
 
-        df = pd.concat(data)
-        return df.reset_index(drop=True)
+        v_df = pd.concat(v_ids).set_index('videoId')
+        v_df = v_df[~v_df.index.duplicated()]
+
+        _ = [data.extend(self.videos_list(','.join(v_df.index[i:i+50]))['items']) for i in range(0, len(v_df), 50)]
+        df = pd.DataFrame(data).apply(lambda _x: eval(es), axis=1, result_type='expand').set_index('videoId')
+        df.playlistId = v_df.loc[df.index]
+
+        return df
 
 
 if __name__ == '__main__':
