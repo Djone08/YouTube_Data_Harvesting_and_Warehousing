@@ -1,4 +1,5 @@
 from googleapiclient.discovery import build
+import mysql.connector as db
 import pandas as pd
 import numpy as np
 from typing import Literal
@@ -46,7 +47,7 @@ class YTAPI(object):
                     part='snippet, contentDetails',
                     pageToken=_page_token,
                     maxResults=50,
-                    channelId=_channel_id)
+                    channelId=_channel_id).execute()
                 return _res
             except Exception as e:
                 print(e)
@@ -58,7 +59,7 @@ class YTAPI(object):
                     part='snippet,contentDetails',
                     pageToken=_page_token,
                     maxResults=50,
-                    playlistId=_playlist_id)
+                    playlistId=_playlist_id).execute()
                 return _res
             except Exception as e:
                 print(e)
@@ -72,6 +73,43 @@ class YTAPI(object):
                 return _res
             except Exception as e:
                 print(e)
+
+    def get_playlists_df(self, _channel_id: str):
+        res = self.playlists_list(_channel_id)
+
+        _df = pd.DataFrame(res['items'])
+        es = '''{"playlistId": _x.id, "channelId": _x.snippet["channelId"],
+        "thumbnails": _x.snippet["thumbnails"]["default"]["url"],"title": _x.snippet["title"],
+        "description": _x.snippet["description"],"itemCount": _x.contentDetails["itemCount"]}'''
+        df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
+
+        while res.get('nextPageToken'):
+            res = self.playlists_list(_channel_id, res.get('nextPageToken'))
+            _df = pd.DataFrame(res['items'])
+            df = pd.concat([df, _df.apply(lambda _x: eval(es), axis=1, result_type='expand')])
+
+        return df
+
+    def get_videos_df(self, _playlist_ids: iter):
+        es = '''{"videoId":_x.snippet["resourceId"]["videoId"],"playlistId": _x.snippet["playlistId"], "channelId": _x.snippet.get("channelId") or _x.snippet["videoOwnerChannelId"],
+        "thumbnails": _x.snippet["thumbnails"]["default"]["url"] if _x.snippet["thumbnails"] else None,"title": _x.snippet["title"],
+        "description": _x.snippet["description"]}'''
+        data = []
+
+        for _playlist_id in _playlist_ids:
+            res = self.playlist_items_list(_playlist_id)
+            _df = pd.DataFrame(res['items'])
+            df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
+
+            while res.get('nextPageToken'):
+                res = self.playlist_items_list(_playlist_id, res.get('nextPageToken'))
+                _df = pd.DataFrame(res['items'])
+                df = pd.concat([df, _df.apply(lambda _x: eval(es), axis=1, result_type='expand')])
+
+            data.append(df)
+
+        df = pd.concat(data)
+        return df.reset_index(drop=True)
 
 
 if __name__ == '__main__':

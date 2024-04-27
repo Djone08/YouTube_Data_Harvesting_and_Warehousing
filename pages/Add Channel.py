@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import mysql.connector as db
 # from streamlit import errors as st_er
 from streamlit.delta_generator import DeltaGenerator
 from About import YTAPI
@@ -61,8 +62,6 @@ def add_channel(_data: pd.Series, _state: DeltaGenerator):
     with _state.status('Adding Channel...') as s:
         s.write('Downloading Data...')
         print(yt.channel_list(_data.channelId))
-
-
 
 
 api_key = 'AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'
