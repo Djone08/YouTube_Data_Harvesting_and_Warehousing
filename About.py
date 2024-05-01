@@ -70,7 +70,7 @@ class YTDataBase(object):
                 primary key (id))''')
 
     def insert_data(self, _table_name: str, **kwargs):
-        _data = tuple(_x for _x in kwargs.values())
+        _data = tuple(x for x in kwargs.values())
         _cols = tuple(kwargs.keys())
         self.cur.execute(f'insert into {_table_name} {_cols} values {_data}')
         self.db.commit()
@@ -87,18 +87,18 @@ class YTDataBase(object):
     @with_cursor
     def add_channels_data(self, _df: pd.DataFrame):
         _df = _df[['id', 'thumbnails', 'title', 'description', 'viewCount', 'subscriberCount', 'videoCount']]
-        _df.apply(lambda _x: self.insert_data('channels', **_x), axis=1)
+        _df.apply(lambda x: self.insert_data('channels', **x), axis=1)
 
     @with_cursor
     def add_playlists_data(self, _df: pd.DataFrame):
         _df = _df[['id', 'channelId', 'thumbnails', 'title', 'description', 'itemCount']]
-        _df.apply(lambda _x: self.insert_data('playlists', **_x), axis=1)
+        _df.apply(lambda x: self.insert_data('playlists', **x), axis=1)
 
     @with_cursor
     def add_videos_data(self, _df: pd.DataFrame):
         _df = _df[['id', 'channelId', 'playlistId', 'thumbnails', 'title', 'description',
                    'duration', 'viewCount', 'likeCount', 'commentCount']]
-        _df.apply(lambda _x: self.insert_data('videos', **_x), axis=1)
+        _df.apply(lambda x: self.insert_data('videos', **x), axis=1)
         # for i, r in _df.iterrows():
         #     try:
         #         self.insert_data('videos', **r)
@@ -188,50 +188,50 @@ class YTAPI(object):
                 print(e)
 
     def get_channels_df(self, _channel_id):
-        es = '''{'id': _x.id, 'thumbnails': _x.snippet['thumbnails']['default']['url'],
-        'title': _x.snippet['title'], 'description': _x.snippet['description'],
-        'viewCount': int(_x.statistics['viewCount']), 'subscriberCount': int(_x.statistics['subscriberCount']),
-        'videoCount': int(_x.statistics['videoCount']) 'uploads': _x.contentDetails['relatedPlaylists']['uploads']}'''
+        es = '''{'id': x.id, 'thumbnails': x.snippet['thumbnails']['default']['url'],
+        'title': x.snippet['title'], 'description': x.snippet['description'],
+        'viewCount': int(x.statistics['viewCount']), 'subscriberCount': int(x.statistics['subscriberCount']),
+        'videoCount': int(x.statistics['videoCount']) 'uploads': x.contentDetails['relatedPlaylists']['uploads']}'''
 
         res = self.channel_list(_channel_id)
         _df = pd.DataFrame(res['items'])
-        df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
+        df = _df.apply(lambda x: eval(es), axis=1, result_type='expand')
         return df.set_index('channelId')
 
     def get_playlists_df(self, _channel_id: str):
-        es = '''{'id': _x.id, 'channelId': _x.snippet['channelId'],
-        'thumbnails': _x.snippet['thumbnails']['default']['url'], 'title': _x.snippet['title'],
-        'description': _x.snippet['description'], 'itemCount': int(_x.contentDetails['itemCount'])}'''
+        es = '''{'id': x.id, 'channelId': x.snippet['channelId'],
+        'thumbnails': x.snippet['thumbnails']['default']['url'], 'title': x.snippet['title'],
+        'description': x.snippet['description'], 'itemCount': int(x.contentDetails['itemCount'])}'''
 
         res = self.playlists_list(_channel_id)
         _df = pd.DataFrame(res['items'])
-        df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
+        df = _df.apply(lambda x: eval(es), axis=1, result_type='expand')
 
         while res.get('nextPageToken'):
             res = self.playlists_list(_channel_id, res.get('nextPageToken'))
             _df = pd.DataFrame(res['items'])
-            df = pd.concat([df, _df.apply(lambda _x: eval(es), axis=1, result_type='expand')])
+            df = pd.concat([df, _df.apply(lambda x: eval(es), axis=1, result_type='expand')])
 
         return df.set_index('playlistId')
 
     def get_videos_df(self, _playlist_id: str):
-        es = '''{'id': _x.id, 'channelId': _x.snippet["channelId"], 'playlistId': _playlist_id,
-        'thumbnails': _x.snippet['thumbnails']['default']['url'], 'title': _x.snippet['title'],
-        'description': _x.snippet['description'], 'duration': _x.contentDetails['duration'],
-        'viewCount': int(_x.statistics['viewCount']), 'likeCount': int(_x.statistics['likeCount']),
-        'commentCount': int(_x.statistics.get('commentCount', 0))}'''
+        es = '''{'id': x.id, 'channelId': x.snippet["channelId"], 'playlistId': _playlist_id,
+        'thumbnails': x.snippet['thumbnails']['default']['url'], 'title': x.snippet['title'],
+        'description': x.snippet['description'], 'duration': x.contentDetails['duration'],
+        'viewCount': int(x.statistics['viewCount']), 'likeCount': int(x.statistics['likeCount']),
+        'commentCount': int(x.statistics.get('commentCount', 0))}'''
         data = []
 
         res = self.playlist_items_list(_playlist_id)
-        vid = [_x['snippet']['resourceId']['videoId'] for _x in res['items']]
+        vid = [x['snippet']['resourceId']['videoId'] for x in res['items']]
         data.extend(self.videos_list(','.join(vid))['items'])
 
         while res.get('nextPageToken'):
             res = self.playlist_items_list(_playlist_id, res.get('nextPageToken'))
-            vid = [_x['snippet']['resourceId']['videoId'] for _x in res['items']]
+            vid = [x['snippet']['resourceId']['videoId'] for x in res['items']]
             data.extend(self.videos_list(','.join(vid))['items'])
 
-        df = pd.DataFrame(data).apply(lambda _x: eval(es), axis=1, result_type='expand')
+        df = pd.DataFrame(data).apply(lambda x: eval(es), axis=1, result_type='expand')
 
         return df.set_index('videoId')
 
@@ -248,5 +248,5 @@ if __name__ == '__main__':
     st.button('create table', on_click=lambda: yt_db.set_database())
     '# Hi, Welcome to my Page 🎉'
     with open('README.md', 'r') as f:
-        for x in f.readlines():
-            st.markdown(x)
+        for l in f.readlines():
+            st.markdown(l)
