@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
-import mysql.connector as db
+# import mysql.connector as db
 # from streamlit import errors as st_er
 from streamlit.delta_generator import DeltaGenerator
-from About import YTAPI
+from About import YTAPI, YTDataBase
 
 
 def on_search(_txt: str):
-    _data = yt.search_list(_txt, 'channel')
+    _data = yt_api.search_list(_txt, 'channel')
     st.session_state.update(NextPageToken=_data.get('nextPageToken', False))
     _df = pd.DataFrame(_data['items'])
     _df = _df.apply(lambda x: x.snippet, axis=1, result_type='expand')
@@ -42,35 +42,51 @@ def set_row(_data: pd.Series):
     else:
         btn_state = st.session_state.get(_data.channelId) or False
 
-        # if btn_state:
-        #     st.session_state.update({_data.channelId: btn_state})
-        #     btn = True
-        # else:
-        #     btn = btn_em.button('Add', key=_data.channelId, disabled=btn_state,
-        #                         on_click=lambda: add_channel(_data, em))
-
         btn = btn_em.button('Add', key=_data.channelId, disabled=btn_state,
-                            # on_click=lambda: add_channel(_data, em)
-                            )
+                            on_click=lambda: st.session_state.chn_add_lst.append(_data))
         btn = btn_state or btn
 
     st.divider()
     return {'check': btn, 'state': em}
 
 
-def add_channel(_data: pd.Series, _state: DeltaGenerator):
-    with _state.status('Adding Channel...') as s:
-        s.write('Downloading Data...')
-        print(yt.channel_list(_data.channelId))
+def add_to_db(_data: pd.Series, _state: DeltaGenerator):
+    with (_state.status('Adding Channel...') as s):
+        s.update(label='Fetching Channel Data...')
+        ch_df = yt_api.get_channels_df(_data.channelId)
+        print(ch_df)
+        s.write('Channel Data DownLoaded ✅')
+        s.update(label='Fetching Playlists Data...')
+        pl_df = yt_api.get_playlists_df(_data.channelId)
+        yt_db.add_playlists_data(pl_df)
+        s.write('Playlists Data DownLoaded ✅')
+        s.update(label='Fetching Videos Data...')
+        v_df = yt_api.get_videos_df(pl_df.index)
+        print(v_df)
+        s.write('Videos Data DownLoaded ✅')
 
 
-api_key = 'AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'
+def add_channel(_data:  pd.Series):
+    st.session_state.chn_add_lst.append(_data)
+
+
 channel_id = 'UCiEmtpFVJjpvdhsQ2QAhxVA'
-yt = YTAPI([api_key])
+
+yt_api = st.session_state.get('yt_api')
+yt_api = yt_api or YTAPI(['AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'])
+st.session_state.update({'yt_api': yt_api})
+
+yt_db = st.session_state.get('yt_db')
+yt_db = yt_db or YTDataBase('localhost', 'root', 'root', 3306)
+st.session_state.update({'yt_db': yt_db})
 
 tab_1, tab_2 = st.tabs(['Add Channel by Name', 'Add Channel by ID'])
+
 if not st.session_state.get('chn_srh_hst'):
     st.session_state.update({'chn_srh_hst': {}})
+
+if not st.session_state.get('chn_add_lst'):
+    st.session_state.update({'chn_add_lst': []})
 
 with tab_1:
     '# Channel Search'
@@ -92,7 +108,7 @@ with tab_1:
         # cols = st.columns([.7, .2])
         # cols[0].write('[Go Up :arrow_up:](#channel-search)')
         # cols[1].button('See More...', disabled=filter_check == 'In Library')
-        df[cb_df.check].apply(lambda x: add_channel(x, cb_df.state.loc[x.name]), axis=1)
+        df[cb_df.check].apply(lambda x: add_to_db(x, cb_df['state'].loc[x.name]), axis=1)
         # df.update(cb_df[cb_df.check])
         # st.session_state.chn_srh_hst.update({srh_txt: df})
         # print(df)
@@ -115,7 +131,7 @@ with tab_2:
                      'Any other Special Characters except ( "_" , "-" )]')
 
     if add_btn:
-        data = yt.channel_list(ch_id)['items'][0]
+        data = yt_api.channel_list(ch_id)['items'][0]
         logo = data['snippet']['thumbnails']['default']['url']
         title = data['snippet']['title']
         description = data['snippet']['description']

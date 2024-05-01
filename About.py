@@ -1,19 +1,109 @@
 from googleapiclient.discovery import build
 import mysql.connector as db
+from functools import wraps
+# import numpy as np
 import pandas as pd
-import numpy as np
 from typing import Literal
 import streamlit as st
 
 
+class YTDataBase(object):
+    def __init__(self, _host: str, _user: str,
+                 _password: str, _port: int, _data_base: str | None = None):
+        _data_base = _data_base if _data_base and _data_base.isidentifier() else 'yt_db'
+        self.db = db.connect(host=_host, user=_user, password=_password, port=_port)
+        self.cur = self.db.cursor()
+        self.cur.close()
+        self.set_database(_data_base)
+
+    @staticmethod
+    def with_cursor(func):
+        @wraps(func)
+        def wrapper_func(self, *args, **kwargs):
+            self.cur = self.db.cursor()
+            value = func(self, *args, **kwargs)
+            self.cur.close()
+            return value
+        return wrapper_func
+
+    @with_cursor
+    def set_database(self, db_name: str):
+        self.cur.execute(f'create database if not exists {db_name}')
+        self.cur.execute(f'use {db_name}')
+
+        self.cur.execute('''create table if not exists channels(
+                id varchar(255) not null,
+                thumbnail varchar(255),
+                title varchar(255),
+                views int,
+                description text,
+                primary key (id))''')
+
+        self.cur.execute('''create table if not exists playlists(
+                id varchar(255) not null,
+                channel_id varchar(255),
+                description text,
+                thumbnail varchar(255),
+                title varchar(255),
+                constraint playlists_channel_id_fk foreign key (channel_id)
+                references channels(id) on delete cascade,
+                primary key (id))''')
+
+        self.cur.execute('''create table if not exists videos(
+                id varchar(255) not null,
+                channel_id varchar(255),
+                playlist_id varchar(255),
+                thumbnail varchar(255),
+                name varchar(255),
+                description text,
+                constraint videos_channel_id_fk foreign key (channel_id)
+                references channels(id) on delete cascade,
+                constraint videos_playlist_id_fk foreign key (playlist_id)
+                references playlists(id) on delete cascade,
+                primary key (id))''')
+
+    def insert_data(self, _table_name: str, **kwargs):
+        _data = tuple(_x for _x in kwargs.values())
+        _cols = tuple(kwargs.keys())
+        self.cur.execute(f'insert into {_table_name} {_cols} values {_data}')
+        self.db.commit()
+
+    def update_data(self, _table_name: str, **kwargs):
+        _data = [f'{a}={b!r}' for a, b in zip(kwargs.keys(), kwargs.values())]
+        self.cur.execute(f'update {_table_name} set {",".join(_data[1:])} where {_data[0]}')
+
+    @with_cursor
+    def add_channels_data(self, _df: pd.DataFrame):
+        _df = _df[['id', 'thumbnail', 'title', 'description', 'viewCount', 'subscriberCount', 'videoCount']]
+        _df.apply(lambda _x: self.insert_data('channels', **_x), axis=1)
+
+    @with_cursor
+    def add_playlists_data(self, _df: pd.DataFrame):
+        _df = _df[['id', 'channelId', 'thumbnail', 'title', 'description', 'itemCount']]
+        _df.apply(lambda _x: self.insert_data('playlists', **_x), axis=1)
+
+    @with_cursor
+    def add_videos_data(self, _df: pd.DataFrame):
+        _df = _df[['id', 'channelId', 'playlistId', 'thumbnail', 'title', 'description',
+                   'duration', 'viewCount', 'likeCount', 'commentCount']]
+        _df.apply(lambda _x: self.insert_data('videos', **_x), axis=1)
+        # for i, r in _df.iterrows():
+        #     try:
+        #         self.insert_data('videos', **r)
+        #     except Exception as e:
+        #         print(e)
+        #         self.update_data('videos', **r)
+
+    @with_cursor
+    def add_comments_data(self, df: pd.DataFrame):
+        pass
+
+
 class YTAPI(object):
-    # def __new__(cls, *args, **kwargs):
-    #     cls.__init__(*args, **kwargs)
-    #     pass
-    #
+
     def __init__(self, _api_keys: list[str]):
         self.yt_apis = [build('youtube',
-                              'v3', developerKey=x) for x in _api_keys]
+                              'v3', developerKey=_api) for _api in _api_keys]
 
     def search_list(self, text: str,
                     typ: Literal['channel', 'playlist', 'video'] = 'channel'):
@@ -44,7 +134,7 @@ class YTAPI(object):
         for _yt in self.yt_apis:
             try:
                 _res = _yt.playlists().list(
-                    part='snippet, contentDetails',
+                    part='snippet,contentDetails',
                     pageToken=_page_token,
                     maxResults=50,
                     channelId=_channel_id).execute()
@@ -146,73 +236,16 @@ class YTAPI(object):
 
 
 if __name__ == '__main__':
-    api_key = 'AIzaSyAhcBInG7i36z7TYEygtIkMLCnm73YBf14'
-    channel_id = 'UCiEmtpFVJjpvdhsQ2QAhxVA'
-    yt = YTAPI([api_key])
+    yt_api = st.session_state.get('yt_api')
+    yt_api = yt_api or YTAPI(['AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'])
+    st.session_state.update({'yt_api': yt_api})
 
-    # st.write(yt.search_list(channel_id))
+    yt_db = st.session_state.get('yt_db')
+    yt_db = yt_db or YTDataBase('localhost', 'root', 'root', 3306)
+    st.session_state.update({'yt_db': yt_db})
 
+    st.button('create table', on_click=lambda: yt_db.set_database())
     '# Hi, Welcome to my Page 🎉'
     with open('README.md', 'r') as f:
         for x in f.readlines():
             st.markdown(x)
-    # st.text_input(label='Channel Search', placeholder='Search', key='channel_search')
-    # if st.button(label='Search', disabled=not bool(st.session_state.channel_search)):
-    #     _df = pd.DataFrame(yt.search_list(st.session_state.channel_search, 'channel')['items'])
-    #     _df = _df.apply(lambda x: x.snippet, axis=1, result_type='expand')
-    #     _df.loc[:, 'logo'] = _df.thumbnails.apply(lambda x: x['default']['url'])
-    #     _df.loc[:, 'check'] = False
-    #     st.data_editor(_df,
-    #                    column_config={
-    #                        'check': st.column_config.CheckboxColumn('Check', default=False),
-    #                        'logo': st.column_config.ImageColumn("Logo")
-    #                    }
-    #                    )
-    #
-    # st.write("Here's our first attempt at using data to create a table:")
-    # df = pd.DataFrame({
-    #     'first column': [1, 2, 3, 4],
-    #     'second column': [10, 20, 30, 40]
-    # })
-    # st.dataframe(df.style.highlight_min())
-    #
-    # if st.checkbox('Show dataframe'):
-    #     chart_data = pd.DataFrame(
-    #         np.random.randn(20, 3),
-    #         columns=['a', 'b', 'c'])
-    #
-    #     chart_data
-    #
-    # df = pd.DataFrame({
-    #     'first column': [1, 2, 3, 4],
-    #     'second column': [10, 20, 30, 40]
-    # })
-    #
-    # option = st.selectbox(
-    #     'Which number do you like best?',
-    #     df['first column'])
-    #
-    # st.write('You selected: ', option)
-    #
-    # add_selectbox = st.sidebar.selectbox(
-    #     'How would you like to be contacted?',
-    #     ('Email', 'Home phone', 'Mobile phone')
-    # )
-    #
-    # add_slider = st.sidebar.slider(
-    #     'Select a range of values',
-    #     0.0, 100.0, (25.0, 75.0)
-    # )
-    #
-    # left_column, right_column = st.columns(2)
-    # # You can use a column just like st.sidebar:
-    # left_column.button('Press me!')
-    #
-    # # Or even better, call Streamlit functions inside a "with" block:
-    # with right_column:
-    #     chosen = st.radio(
-    #         'Sorting hat',
-    #         ("Gryffindor", "Ravenclaw", "Hufflepuff", "Slytherin"), key='hat')
-    #     f"You are in {st.session_state.hat} house!"
-    #
-    # 'hi there'
