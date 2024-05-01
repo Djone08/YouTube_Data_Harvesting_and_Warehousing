@@ -12,6 +12,7 @@ def on_search(_txt: str):
     _df = pd.DataFrame(_data['items'])
     _df = _df.apply(lambda x: x.snippet, axis=1, result_type='expand')
     _df.loc[:, 'logo'] = _df.thumbnails.apply(lambda x: x['default']['url'])
+    f_data = yt_db.fetch_data('select channel_id from channels')
     _df.loc[:, 'check'] = False
     st.session_state.chn_srh_hst.update({_txt: _df})
 
@@ -22,7 +23,6 @@ def set_row(_data: pd.Series):
         ''
         ''
         btn_em = st.empty()
-
     with c2:
         st.write(f'''<p>
         <img src="{_data.logo}"

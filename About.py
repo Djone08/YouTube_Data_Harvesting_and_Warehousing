@@ -33,32 +33,39 @@ class YTDataBase(object):
 
         self.cur.execute('''create table if not exists channels(
                 id varchar(255) not null,
-                thumbnail varchar(255),
+                thumbnails varchar(255),
                 title varchar(255),
-                views int,
                 description text,
+                viewCount int,
+                subscriberCount int,
+                videoCount int,
                 primary key (id))''')
 
         self.cur.execute('''create table if not exists playlists(
                 id varchar(255) not null,
-                channel_id varchar(255),
-                description text,
-                thumbnail varchar(255),
+                channelId varchar(255),
+                thumbnails varchar(255),
                 title varchar(255),
-                constraint playlists_channel_id_fk foreign key (channel_id)
+                description text,
+                itemCount int,
+                constraint playlists_channelId_fk foreign key (channelId)
                 references channels(id) on delete cascade,
                 primary key (id))''')
 
         self.cur.execute('''create table if not exists videos(
                 id varchar(255) not null,
-                channel_id varchar(255),
-                playlist_id varchar(255),
-                thumbnail varchar(255),
-                name varchar(255),
+                channelId varchar(255),
+                playlistId varchar(255),
+                thumbnails varchar(255),
+                title varchar(255),
                 description text,
-                constraint videos_channel_id_fk foreign key (channel_id)
+                duration varchar(50),
+                viewCount int,
+                likeCount int,
+                commentCount int,
+                constraint videos_channelId_fk foreign key (channelId)
                 references channels(id) on delete cascade,
-                constraint videos_playlist_id_fk foreign key (playlist_id)
+                constraint videos_playlistId_fk foreign key (playlistId)
                 references playlists(id) on delete cascade,
                 primary key (id))''')
 
@@ -73,18 +80,23 @@ class YTDataBase(object):
         self.cur.execute(f'update {_table_name} set {",".join(_data[1:])} where {_data[0]}')
 
     @with_cursor
+    def fetch_data(self, query: str):
+        self.cur.execute(query)
+        return self.cur.fetchall()
+
+    @with_cursor
     def add_channels_data(self, _df: pd.DataFrame):
-        _df = _df[['id', 'thumbnail', 'title', 'description', 'viewCount', 'subscriberCount', 'videoCount']]
+        _df = _df[['id', 'thumbnails', 'title', 'description', 'viewCount', 'subscriberCount', 'videoCount']]
         _df.apply(lambda _x: self.insert_data('channels', **_x), axis=1)
 
     @with_cursor
     def add_playlists_data(self, _df: pd.DataFrame):
-        _df = _df[['id', 'channelId', 'thumbnail', 'title', 'description', 'itemCount']]
+        _df = _df[['id', 'channelId', 'thumbnails', 'title', 'description', 'itemCount']]
         _df.apply(lambda _x: self.insert_data('playlists', **_x), axis=1)
 
     @with_cursor
     def add_videos_data(self, _df: pd.DataFrame):
-        _df = _df[['id', 'channelId', 'playlistId', 'thumbnail', 'title', 'description',
+        _df = _df[['id', 'channelId', 'playlistId', 'thumbnails', 'title', 'description',
                    'duration', 'viewCount', 'likeCount', 'commentCount']]
         _df.apply(lambda _x: self.insert_data('videos', **_x), axis=1)
         # for i, r in _df.iterrows():
@@ -176,23 +188,23 @@ class YTAPI(object):
                 print(e)
 
     def get_channels_df(self, _channel_id):
-        res = self.channel_list(_channel_id)
-
-        _df = pd.DataFrame(res['items'])
-        es = '''{'channelId': _x.id, 'thumbnails': _x.snippet['thumbnails']['default']['url'],
+        es = '''{'id': _x.id, 'thumbnails': _x.snippet['thumbnails']['default']['url'],
         'title': _x.snippet['title'], 'description': _x.snippet['description'],
-        'subscriberCount': _x.statistics['subscriberCount'], 'viewCount': _x.statistics['viewCount'],
-        videoCount: _x.statistics['videoCount']}'''
+        'viewCount': int(_x.statistics['viewCount']), 'subscriberCount': int(_x.statistics['subscriberCount']),
+        'videoCount': int(_x.statistics['videoCount']) 'uploads': _x.contentDetails['relatedPlaylists']['uploads']}'''
+
+        res = self.channel_list(_channel_id)
+        _df = pd.DataFrame(res['items'])
         df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
         return df.set_index('channelId')
 
     def get_playlists_df(self, _channel_id: str):
-        res = self.playlists_list(_channel_id)
+        es = '''{'id': _x.id, 'channelId': _x.snippet['channelId'],
+        'thumbnails': _x.snippet['thumbnails']['default']['url'], 'title': _x.snippet['title'],
+        'description': _x.snippet['description'], 'itemCount': int(_x.contentDetails['itemCount'])}'''
 
+        res = self.playlists_list(_channel_id)
         _df = pd.DataFrame(res['items'])
-        es = '''{'playlistId': _x.id, 'channelId': _x.snippet['channelId'],
-        'thumbnails': _x.snippet['thumbnails']['default']['url'],'title': _x.snippet['title'],
-        'description': _x.snippet['description'],'itemCount': _x.contentDetails['itemCount']}'''
         df = _df.apply(lambda _x: eval(es), axis=1, result_type='expand')
 
         while res.get('nextPageToken'):
@@ -202,35 +214,24 @@ class YTAPI(object):
 
         return df.set_index('playlistId')
 
-    def get_videos_df(self, _playlist_ids: iter):
-        es = '''{'videoId': _x.id, 'playlistId': '', 'channelId': _x.snippet["channelId"],
+    def get_videos_df(self, _playlist_id: str):
+        es = '''{'id': _x.id, 'channelId': _x.snippet["channelId"], 'playlistId': _playlist_id,
         'thumbnails': _x.snippet['thumbnails']['default']['url'], 'title': _x.snippet['title'],
         'description': _x.snippet['description'], 'duration': _x.contentDetails['duration'],
-        'viewCount': _x.statistics['viewCount'], 'likeCount': _x.statistics['likeCount'],
-        'commentCount': _x.statistics.get('commentCount', 0)}'''
+        'viewCount': int(_x.statistics['viewCount']), 'likeCount': int(_x.statistics['likeCount']),
+        'commentCount': int(_x.statistics.get('commentCount', 0))}'''
         data = []
-        v_ids = []
 
-        for _playlist_id in _playlist_ids:
-            res = self.playlist_items_list(_playlist_id)
-            _df = pd.DataFrame(res['items'])
-            df = _df.apply(lambda _x: {'videoId': _x.snippet['resourceId']['videoId'],
-                                       'playlistId': _x.snippet['playlistId']}, axis=1, result_type='expand')
+        res = self.playlist_items_list(_playlist_id)
+        vid = [_x['snippet']['resourceId']['videoId'] for _x in res['items']]
+        data.extend(self.videos_list(','.join(vid))['items'])
 
-            while res.get('nextPageToken'):
-                res = self.playlist_items_list(_playlist_id, res.get('nextPageToken'))
-                _df = pd.DataFrame(res['items'])
-                df = _df.apply(lambda _x: {'videoId': _x.snippet['resourceId']['videoId'],
-                                           'playlistId': _x.snippet['playlistId']}, axis=1, result_type='expand')
+        while res.get('nextPageToken'):
+            res = self.playlist_items_list(_playlist_id, res.get('nextPageToken'))
+            vid = [_x['snippet']['resourceId']['videoId'] for _x in res['items']]
+            data.extend(self.videos_list(','.join(vid))['items'])
 
-            v_ids.append(df)
-
-        v_df = pd.concat(v_ids).set_index('videoId')
-        v_df = v_df[~v_df.index.duplicated()]
-
-        _ = [data.extend(self.videos_list(','.join(v_df.index[i:i+50]))['items']) for i in range(0, len(v_df), 50)]
         df = pd.DataFrame(data).apply(lambda _x: eval(es), axis=1, result_type='expand')
-        df.playlistId = v_df.loc[df.videoId].playlistId.values
 
         return df.set_index('videoId')
 
