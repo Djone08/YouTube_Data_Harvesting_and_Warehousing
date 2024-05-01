@@ -54,16 +54,16 @@ def add_to_db(_data: pd.Series, _state: DeltaGenerator):
     with (_state.status('Adding Channel...') as s):
         s.update(label='Fetching Channel Data...')
         ch_df = yt_api.get_channels_df(_data.channelId)
-        print(ch_df)
+        yt_db.add_channels_data(ch_df)
         s.write('Channel Data DownLoaded ✅')
+        s.update(label='Fetching Videos Data...')
+        v_df = pd.concat([yt_api.get_videos_df(x) for x in ch_df['uploads']])
+        yt_db.add_videos_data(v_df)
+        s.write('Videos Data DownLoaded ✅')
         s.update(label='Fetching Playlists Data...')
         pl_df = yt_api.get_playlists_df(_data.channelId)
         yt_db.add_playlists_data(pl_df)
         s.write('Playlists Data DownLoaded ✅')
-        s.update(label='Fetching Videos Data...')
-        v_df = yt_api.get_videos_df(pl_df.index)
-        print(v_df)
-        s.write('Videos Data DownLoaded ✅')
 
 
 def add_channel(_data:  pd.Series):

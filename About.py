@@ -196,7 +196,7 @@ class YTAPI(object):
         res = self.channel_list(_channel_id)
         _df = pd.DataFrame(res['items'])
         df = _df.apply(lambda x: eval(es), axis=1, result_type='expand')
-        return df.set_index('channelId')
+        return df
 
     def get_playlists_df(self, _channel_id: str):
         es = '''{'id': x.id, 'channelId': x.snippet['channelId'],
@@ -212,7 +212,7 @@ class YTAPI(object):
             _df = pd.DataFrame(res['items'])
             df = pd.concat([df, _df.apply(lambda x: eval(es), axis=1, result_type='expand')])
 
-        return df.set_index('playlistId')
+        return df
 
     def get_videos_df(self, _playlist_id: str):
         es = '''{'id': x.id, 'channelId': x.snippet["channelId"], 'playlistId': _playlist_id,
@@ -233,7 +233,7 @@ class YTAPI(object):
 
         df = pd.DataFrame(data).apply(lambda x: eval(es), axis=1, result_type='expand')
 
-        return df.set_index('videoId')
+        return df
 
 
 if __name__ == '__main__':
