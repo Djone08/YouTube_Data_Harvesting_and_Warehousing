@@ -191,7 +191,7 @@ class YTAPI(object):
         es = '''{'id': x.id, 'thumbnails': x.snippet['thumbnails']['default']['url'],
         'title': x.snippet['title'], 'description': x.snippet['description'],
         'viewCount': int(x.statistics['viewCount']), 'subscriberCount': int(x.statistics['subscriberCount']),
-        'videoCount': int(x.statistics['videoCount']) 'uploads': x.contentDetails['relatedPlaylists']['uploads']}'''
+        'videoCount': int(x.statistics['videoCount']), 'uploads': x.contentDetails['relatedPlaylists']['uploads']}'''
 
         res = self.channel_list(_channel_id)
         _df = pd.DataFrame(res['items'])
