@@ -104,117 +104,91 @@ def add_to_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
         s.write('comments Data DownLoaded ✅')
 
 
-yt_api = st.session_state.get('yt_api')
-yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
-# yt_api = yt_api or YTAPI(['AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'])
-st.session_state.update({'yt_api': yt_api})
+if __name__ == '__main__':
+    yt_api = st.session_state.get('yt_api')
+    yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
+    # yt_api = yt_api or YTAPI(['AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'])
+    st.session_state.update({'yt_api': yt_api})
 
-yt_db = st.session_state.get('yt_db')
-yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
-# yt_db = yt_db or YTDataBase('localhost', 'root', 'root', '3306')
-st.session_state.update({'yt_db': yt_db})
+    yt_db = st.session_state.get('yt_db')
+    yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
+    # yt_db = yt_db or YTDataBase('localhost', 'root', 'root', '3306')
+    st.session_state.update({'yt_db': yt_db})
 
-tab_1, tab_2 = st.tabs(['search Channels', 'Add Channels'])
+    tab_1, tab_2 = st.tabs(['search Channels', 'Add Channels'])
 
-if not st.session_state.get('chn_srh_hst'):
-    st.session_state.update({'chn_srh_hst': {}})
+    if not st.session_state.get('chn_srh_hst'):
+        st.session_state.update({'chn_srh_hst': {}})
 
-if not st.session_state.get('chn_add_lst'):
-    st.session_state.update({'chn_add_lst': []})
+    if not st.session_state.get('chn_add_lst'):
+        st.session_state.update({'chn_add_lst': []})
 
-with tab_1:
-    '# Channel Search'
+    with tab_1:
+        '# Channel Search'
 
-    srh_txt = st.text_input(label='Search Bar', placeholder='Search', label_visibility='collapsed')
+        srh_txt = st.text_input(label='Search Bar', placeholder='Search', label_visibility='collapsed')
 
-    st.button(label='Search', disabled=not srh_txt, on_click=lambda: on_search(srh_txt), type='primary')
+        st.button(label='Search', disabled=not srh_txt, on_click=lambda: on_search(srh_txt), type='primary')
 
-    df = st.session_state.chn_srh_hst[srh_txt] if srh_txt in st.session_state.chn_srh_hst else pd.DataFrame()
-    if not df.empty:
-        fetch_df = yt_db.fetch_data('select id from channels')
-        df.loc[:, 'check'] = df.channelId.isin(fetch_df.id)
-        st.session_state.chn_srh_hst.update({srh_txt: df})
-
-        with st.container():
-            filter_check = st.selectbox('Filter', ['All', 'In Library', 'Not In Library'])
-            filter_df = df[df.check == (filter_check == 'In Library')] if filter_check != 'All' else df
-
-            filter_df.apply(lambda x: set_row_srh(x), axis=1)
-
-            cols = st.columns([.7, .2])
-            cols[0].write('[Go Up :arrow_up:](#channel-search)')
-            # cols[1].button('See More...', disabled=filter_check == 'In Library')
-
-with tab_2:
-    '# Add Channels to Library'
-    ''
-
-    df = pd.DataFrame(st.session_state.chn_add_lst)
-    if not df.empty:
-        cols = st.columns([.7, .3])
-        with cols[1]:
-            add_btn = st.button(label='Add All to Library', type='primary')
-        r_df = df.apply(lambda x: set_row_add(x), axis=1, result_type='expand')
-        if add_btn:
-            r_df.apply(lambda x: add_to_db(**x), axis=1)
-            chn_add_lst = st.session_state.chn_add_lst
+        df = st.session_state.chn_srh_hst[srh_txt] if srh_txt in st.session_state.chn_srh_hst else pd.DataFrame()
+        if not df.empty:
             fetch_df = yt_db.fetch_data('select id from channels')
-            st.session_state.chn_add_lst = [x for x in chn_add_lst if x.channelId not in fetch_df.id.values]
-            st.rerun()
-    else:
-        st.info(':blue[Add Channels to the list Using Channel Search]', icon='ℹ️')
+            df.loc[:, 'check'] = df.channelId.isin(fetch_df.id)
+            st.session_state.chn_srh_hst.update({srh_txt: df})
 
+            with st.container():
+                filter_check = st.selectbox('Filter', ['All', 'In Library', 'Not In Library'])
+                filter_df = df[df.check == (filter_check == 'In Library')] if filter_check != 'All' else df
 
-# with tab_3:
-#     '# Add by Channel ID'
-#
-#     ch_id = st.text_input(label='Channel ID', placeholder='Channel ID', label_visibility='collapsed').strip()
-#     id_chk = ch_id.replace('_', '0').replace('-', '0')
-#
-#     btn_col = st.columns([.1, .95])
-#
-#     add_btn = btn_col[0].button(label='Add', disabled=not (id_chk.isalnum() and len(ch_id) == 24))
-#     fetch_data = yt_db.fetch_data('select id from channels')
-#
-#     with btn_col[1]:
-#         if ch_id and len(ch_id) != 24:
-#             st.error(':red[The Channel ID must be of 24 Characters]')
-#         elif ch_id and not id_chk.isalnum():
-#             st.error(':red[The Channel ID con not Contain Spaces or '
-#                      'Any other Special Characters except ( "_" , "-" )]')
-#         elif ch_id in fetch_data['id'].values:
-#             st.info(':blue[Channel Id already in List]')
-#
-#     if add_btn:
-#         if ch_id not in fetch_data['id'].values:
-#             df.loc[:, 'logo'] = df.thumbnails.apply(lambda x: x['default']['url'])
-#             df = pd.DataFrame(yt_api.channel_list(ch_id)['items'])
-#             df = df.apply(lambda x: x.snippet, axis=1, result_type='expand')
-#             st.session_state.chn_add_lst.append(df.iloc[0])
-#             st.success(':green[Successfully Added to the List]')
-    #     logo = data['snippet']['thumbnails']['default']['url']
-    #     title = data['snippet']['title']
-    #     description = data['snippet']['description']
+                filter_df.apply(lambda x: set_row_srh(x), axis=1)
+
+                cols = st.columns([.7, .2])
+                cols[0].write('[Go Up :arrow_up:](#channel-search)')
+                # cols[1].button('See More...', disabled=filter_check == 'In Library')
+
+    with tab_2:
+        '# Add Channels to Library'
+        ''
+
+        df = pd.DataFrame(st.session_state.chn_add_lst)
+        if not df.empty:
+            cols = st.columns([.7, .3])
+            with cols[1]:
+                add_btn = st.button(label='Add All to Library', type='primary')
+            r_df = df.apply(lambda x: set_row_add(x), axis=1, result_type='expand')
+            if add_btn:
+                r_df.apply(lambda x: add_to_db(**x), axis=1)
+                chn_add_lst = st.session_state.chn_add_lst
+                fetch_df = yt_db.fetch_data('select id from channels')
+                st.session_state.chn_add_lst = [x for x in chn_add_lst if x.channelId not in fetch_df.id.values]
+                st.rerun()
+        else:
+            st.info(':blue[Add Channels to the list Using Channel Search]', icon='ℹ️')
+
+    # with tab_3:
+    #     '# Add by Channel ID'
     #
-    #     cols = st.columns(3)
+    #     ch_id = st.text_input(label='Channel ID', placeholder='Channel ID', label_visibility='collapsed').strip()
+    #     id_chk = ch_id.replace('_', '0').replace('-', '0')
     #
-    #     with cols[0]:
-    #         st.image(logo)
-    #     with cols[1]:
-    #         f'# {title}'
-    #         st.caption(description)
-    #     st.success('yeay!')
-    #     st.error('This is an error', icon='🚨')
-    #     print(bool(st.session_state.get('new_')))
-    # import time
-    # em = st.empty()
-    # with em.status("Downloading data...", expanded=False) as status:
-    #     st.write("Searching for data...")
-    #     time.sleep(2)
-    #     st.write("Found URL.")
-    #     time.sleep(1)
-    #     st.success("Downloading data...")
-    #     time.sleep(1)
-    #     status.update(label="Download complete!", state="complete", expanded=False)
-    # time.sleep(1)
-    # em.empty()
+    #     btn_col = st.columns([.1, .95])
+    #
+    #     add_btn = btn_col[0].button(label='Add', disabled=not (id_chk.isalnum() and len(ch_id) == 24))
+    #     fetch_data = yt_db.fetch_data('select id from channels')
+    #
+    #     with btn_col[1]:
+    #         if ch_id and len(ch_id) != 24:
+    #             st.error(':red[The Channel ID must be of 24 Characters]')
+    #         elif ch_id and not id_chk.isalnum():
+    #             st.error(':red[The Channel ID con not Contain Spaces or '
+    #                      'Any other Special Characters except ( "_" , "-" )]')
+    #         elif ch_id in fetch_data['id'].values:
+    #             st.info(':blue[Channel Id already in List]')
+    #
+    #     if add_btn:
+    #         if ch_id not in fetch_data['id'].values:
+    #             df.loc[:, 'logo'] = df.thumbnails.apply(lambda x: x['default']['url'])
+    #             df = pd.DataFrame(yt_api.channel_list(ch_id)['items'])
+    #             df = df.apply(lambda x: x.snippet, axis=1, result_type='expand')
+    #             st.session_state.chn_add_lst.append(df.iloc[0])
+    #             st.success(':green[Successfully Added to the List]')

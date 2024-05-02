@@ -333,7 +333,6 @@ class YTAPI(object):
 
 
 if __name__ == '__main__':
-
     if not st.session_state.get('yt_api_creds'):
         cfg = ConfigParser()
         cfg.read('Config.ini')

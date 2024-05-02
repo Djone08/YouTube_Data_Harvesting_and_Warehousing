@@ -31,19 +31,20 @@ def set_row_del(_data: pd.Series):
     st.divider()
 
 
-yt_api = st.session_state.get('yt_api')
-yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
-st.session_state.update({'yt_api': yt_api})
+if __name__ == '__main__':
+    yt_api = st.session_state.get('yt_api')
+    yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
+    st.session_state.update({'yt_api': yt_api})
 
-yt_db = st.session_state.get('yt_db')
-yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
-st.session_state.update({'yt_db': yt_db})
+    yt_db = st.session_state.get('yt_db')
+    yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
+    st.session_state.update({'yt_db': yt_db})
 
-'# Channels Library'
-''
+    '# Channels Library'
+    ''
 
-df = yt_db.fetch_data('select * from channels')
-if not df.empty:
-    df.apply(lambda x: set_row_del(x), axis=1)
-else:
-    st.info(':blue[Add Channels to the list Using Channel Search]', icon='ℹ️')
+    df = yt_db.fetch_data('select * from channels')
+    if not df.empty:
+        df.apply(lambda x: set_row_del(x), axis=1)
+    else:
+        st.info(':blue[Add Channels to the list Using Channel Search]', icon='ℹ️')
