@@ -100,15 +100,13 @@ def add_to_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
         s.write('Playlist Id Added ✅')
 
 
-# channel_id = 'UCiEmtpFVJjpvdhsQ2QAhxVA'
-
 yt_api = st.session_state.get('yt_api')
-# yt_api = yt_api or YTAPI(['AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'])
-# st.session_state.update({'yt_api': yt_api})
+yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
+st.session_state.update({'yt_api': yt_api})
 
 yt_db = st.session_state.get('yt_db')
-# yt_db = yt_db or YTDataBase('localhost', 'root', 'root', 3306)
-# st.session_state.update({'yt_db': yt_db})
+yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
+st.session_state.update({'yt_db': yt_db})
 
 tab_1, tab_2 = st.tabs(['search Channels', 'Add Channels'])
 

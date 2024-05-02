@@ -4,13 +4,14 @@ from functools import wraps
 import pandas as pd
 from typing import Literal
 import streamlit as st
+from configparser import ConfigParser
 
 
 class YTDataBase(object):
     def __init__(self, _host: str, _user: str,
-                 _password: str, _port: int, _data_base: str | None = None):
+                 _password: str, _port: str, _data_base: str | None = None):
         _data_base = _data_base if _data_base and _data_base.isidentifier() else 'yt_db'
-        self.db = db.connect(host=_host, user=_user, password=_password, port=_port)
+        self.db = db.connect(host=_host, user=_user, password=_password, port=int(_port))
         self.cur = self.db.cursor()
         self.cur.close()
         self.set_database(_data_base)
@@ -285,12 +286,25 @@ class YTAPI(object):
 
 
 if __name__ == '__main__':
+
+    if not st.session_state.get('yt_api_creds'):
+        cfg = ConfigParser()
+        cfg.read('Config.ini')
+        apis = list(dict(cfg.items('YouTubeAPI')).values())
+        st.session_state['yt_api_creds'] = [x for x in apis if x]
+
+    if not st.session_state.get('yt_db_creds'):
+        cfg = ConfigParser()
+        cfg.read('Config.ini')
+        db_cred = dict(cfg.items('YouTubeDataBase'))
+        st.session_state['yt_db_creds'] = db_cred
+
     yt_api = st.session_state.get('yt_api')
-    yt_api = yt_api or YTAPI(['AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'])
+    yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
     st.session_state.update({'yt_api': yt_api})
 
     yt_db = st.session_state.get('yt_db')
-    yt_db = yt_db or YTDataBase('localhost', 'root', 'root', 3306)
+    yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
     st.session_state.update({'yt_db': yt_db})
 
     '# Hi, Welcome to my Page 🎉'
