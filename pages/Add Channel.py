@@ -186,7 +186,6 @@ with tab_2:
 #             df = df.apply(lambda x: x.snippet, axis=1, result_type='expand')
 #             st.session_state.chn_add_lst.append(df.iloc[0])
 #             st.success(':green[Successfully Added to the List]')
-
     #     logo = data['snippet']['thumbnails']['default']['url']
     #     title = data['snippet']['title']
     #     description = data['snippet']['description']
