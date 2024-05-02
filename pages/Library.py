@@ -47,4 +47,3 @@ if not df.empty:
     df.apply(lambda x: set_row_del(x), axis=1)
 else:
     st.info(':blue[Add Channels to the list Using Channel Search]', icon='ℹ️')
-

@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd
+# import pandas as pd
 from About import YTAPI, YTDataBase
 
 yt_api = st.session_state.get('yt_api')
@@ -21,6 +21,8 @@ questions = [
     '08.What are the names of all the channels that have published videos in the year 2022?',
     '09.What is the average duration of all videos in each channel, and what are their corresponding channel names?',
     '10.Which videos have the highest number of comments, and what are their corresponding channel names?']
+
+'# QnA'
 
 q = st.selectbox('Questions', questions)
 
@@ -99,4 +101,3 @@ elif q == questions[9]:
     cc = {'channelThumbnails': st.column_config.ImageColumn(label='channelThumbnails'),
           'videoThumbnails': st.column_config.ImageColumn(label='videoThumbnails')}
     st.dataframe(df, column_config=cc, hide_index=True)
-

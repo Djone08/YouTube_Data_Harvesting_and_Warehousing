@@ -64,8 +64,8 @@ def set_row_add(_data: pd.Series):
         ''
         ''
         if st.session_state.get(f'add_{_data.channelId}'):
-            chn_add_lst = st.session_state.chn_add_lst
-            st.session_state.chn_add_lst = [x for x in chn_add_lst if x.channelId != _data.channelId]
+            _chn_add_lst = st.session_state.chn_add_lst
+            st.session_state.chn_add_lst = [x for x in _chn_add_lst if x.channelId != _data.channelId]
 
         ch_df = pd.DataFrame(st.session_state.chn_add_lst)
         btn_state = True if ch_df.empty else _data.channelId not in ch_df.channelId.values
@@ -157,8 +157,6 @@ with tab_2:
             st.rerun()
     else:
         st.info(':blue[Add Channels to the list Using Channel Search]', icon='ℹ️')
-
-
 
 
 # with tab_3:
