@@ -98,14 +98,20 @@ def add_to_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
         v_df = pd.concat([yt_api.get_videos_df(x) for x in pl_df['id']])
         yt_db.add_videos_data(v_df)
         s.write('Playlist Id Added ✅')
+        s.update(label='Fetching comments Data...')
+        c_df = yt_api.get_comments_df(_channel_id)
+        yt_db.add_comments_data(c_df)
+        s.write('comments Data DownLoaded ✅')
 
 
 yt_api = st.session_state.get('yt_api')
 yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
+# yt_api = yt_api or YTAPI(['AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'])
 st.session_state.update({'yt_api': yt_api})
 
 yt_db = st.session_state.get('yt_db')
 yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
+# yt_db = yt_db or YTDataBase('localhost', 'root', 'root', '3306')
 st.session_state.update({'yt_db': yt_db})
 
 tab_1, tab_2 = st.tabs(['search Channels', 'Add Channels'])

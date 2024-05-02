@@ -72,6 +72,22 @@ class YTDataBase(object):
                 references playlists(id) on delete cascade,
                 primary key (id))''')
 
+        self.cur.execute('''create table if not exists comments(
+                id varchar(255) not null,
+                channelId varchar(255),
+                videoId varchar(255),
+                authorProfileImage varchar(255),
+                textDisplay text,
+                textOriginal text,
+                likeCount int,
+                publishedAt datetime,
+                updatedAt datetime,
+                constraint comments_channelId_fk foreign key (channelId)
+                references channels(id) on delete cascade,
+                constraint comments_videoId_fk foreign key (videoId)
+                references videos(id) on delete cascade,
+                primary key (id))''')
+
     def insert_data(self, _table_name: str, **kwargs):
         _data = tuple(x for x in kwargs.values())
         _cols = ','.join(x for x in kwargs)
@@ -144,8 +160,22 @@ class YTDataBase(object):
                     raise e
 
     @with_cursor
-    def add_comments_data(self, df: pd.DataFrame):
-        pass
+    def add_comments_data(self, _df: pd.DataFrame):
+        _df = _df[['id', 'channelId', 'videoId', 'authorProfileImage', 'textDisplay',
+                   'textOriginal', 'likeCount', 'publishedAt', 'updatedAt']]
+        _df.publishedAt = _df.publishedAt.apply(lambda x: x.split('Z')[0].replace('T', ' '))
+        _df.updatedAt = _df.updatedAt.apply(lambda x: x.split('Z')[0].replace('T', ' '))
+        # _df.apply(lambda x: self.insert_data('comments', **x), axis=1)
+        for i, r in _df.iterrows():
+            try:
+                self.insert_data('comments', **r)
+            except Exception as e:
+                if str(e).startswith('1062 (23000): Duplicate entry'):
+                    self.update_data('comments', **r)
+                elif str(e).startswith('1452 (23000): Cannot add or update a child row'):
+                    st.toast(f':red[{e}]')
+                else:
+                    raise e
 
 
 class YTAPI(object):
@@ -213,12 +243,14 @@ class YTAPI(object):
             except Exception as e:
                 print(e)
 
-    def comment_threads_list(self, _channel_id: str):
+    def comment_threads_list(self, _channel_id: str, **kwargs):
         for _yt in self.yt_apis:
             try:
                 _res = _yt.commentThreads().list(
                     part='id,replies,snippet',
-                    allThreadsRelatedToChannelId=_channel_id).execute()
+                    allThreadsRelatedToChannelId=_channel_id,
+                    maxResults=100,
+                    **kwargs).execute()
                 return _res
             except Exception as e:
                 print(e)
@@ -281,6 +313,21 @@ class YTAPI(object):
             df.playlistId = _playlist_id
             df.publishedAt = df.publishedAt.apply(lambda x: x.split('Z')[0].replace('T', ' '))
             df.duration = pd.to_timedelta(df.duration.str[1:].str.replace('T', '').str.lower())
+
+        return df
+
+    def get_comments_df(self, _channel_id):
+        es = '''{'id': x.id, 'channelId': x.snippet["channelId"], 'videoId': x.snippet['videoId'],
+                'authorProfileImage': x.snippet['topLevelComment']['snippet']['authorProfileImageUrl'],
+                'textDisplay': x.snippet['topLevelComment']['snippet']['textDisplay'],
+                'textOriginal': x.snippet['topLevelComment']['snippet']['textOriginal'],
+                'likeCount': x.snippet['topLevelComment']['snippet']['likeCount'],
+                'publishedAt': x.snippet['topLevelComment']['snippet']['publishedAt'],
+                'updatedAt': x.snippet['topLevelComment']['snippet']['updatedAt']}'''
+
+        res = self.comment_threads_list(_channel_id)
+        _df = pd.DataFrame(res['items'])
+        df = _df.apply(lambda x: eval(es), axis=1, result_type='expand')
 
         return df
 

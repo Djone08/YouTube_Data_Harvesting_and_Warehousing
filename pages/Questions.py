@@ -86,6 +86,7 @@ elif q == questions[7]:
 elif q == questions[8]:
     df = yt_db.fetch_data('select id, thumbnails, title from channels')
     _data = [yt_db.fetch_data(f'select duration from videos where channelId = {x!r}') for x in df.id.values]
+    _data
     df.loc[:, 'averageDuration'] = [x.duration.sum()/len(x) for x in _data]
     df.drop('id', axis=1, inplace=True)
     cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails'),
