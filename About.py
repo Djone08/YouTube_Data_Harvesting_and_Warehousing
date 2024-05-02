@@ -8,13 +8,13 @@ from configparser import ConfigParser
 
 
 class YTDataBase(object):
-    def __init__(self, _host: str, _user: str,
-                 _password: str, _port: str, _data_base: str | None = None):
-        _data_base = _data_base if _data_base and _data_base.isidentifier() else 'yt_db'
-        self.db = db.connect(host=_host, user=_user, password=_password, port=int(_port))
+    def __init__(self, host: str, user: str,
+                 password: str, port: str, schema: str | None = None):
+        schema = schema if schema and schema.isidentifier() else 'yt_db'
+        self.db = db.connect(host=host, user=user, password=password, port=int(port))
         self.cur = self.db.cursor()
         self.cur.close()
-        self.set_database(_data_base)
+        self.set_database(schema)
 
     @staticmethod
     def with_cursor(func):
