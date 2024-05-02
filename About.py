@@ -1,7 +1,6 @@
 from googleapiclient.discovery import build
 import mysql.connector as db
 from functools import wraps
-# import numpy as np
 import pandas as pd
 from typing import Literal
 import streamlit as st
@@ -36,8 +35,8 @@ class YTDataBase(object):
                 thumbnails varchar(255),
                 title varchar(255),
                 description text,
-                viewCount int,
-                subscriberCount int,
+                viewCount bigint,
+                subscriberCount bigint,
                 videoCount int,
                 primary key (id))''')
 
@@ -47,6 +46,7 @@ class YTDataBase(object):
                 thumbnails varchar(255),
                 title varchar(255),
                 description text,
+                publishedAt datetime,
                 itemCount int,
                 constraint playlists_channelId_fk foreign key (channelId)
                 references channels(id) on delete cascade,
@@ -59,10 +59,12 @@ class YTDataBase(object):
                 thumbnails varchar(255),
                 title varchar(255),
                 description text,
-                duration varchar(50),
-                viewCount int,
-                likeCount int,
-                commentCount int,
+                publishedAt datetime,
+                duration time,
+                viewCount bigint,
+                likeCount bigint,
+                dislikeCount bigint,
+                commentCount bigint,
                 constraint videos_channelId_fk foreign key (channelId)
                 references channels(id) on delete cascade,
                 constraint videos_playlistId_fk foreign key (playlistId)
@@ -71,40 +73,74 @@ class YTDataBase(object):
 
     def insert_data(self, _table_name: str, **kwargs):
         _data = tuple(x for x in kwargs.values())
-        _cols = tuple(kwargs.keys())
-        self.cur.execute(f'insert into {_table_name} {_cols} values {_data}')
+        _cols = ','.join(x for x in kwargs)
+        self.cur.execute(f'insert into {_table_name} ({_cols}) values {_data}')
         self.db.commit()
 
     def update_data(self, _table_name: str, **kwargs):
         _data = [f'{a}={b!r}' for a, b in zip(kwargs.keys(), kwargs.values())]
         self.cur.execute(f'update {_table_name} set {",".join(_data[1:])} where {_data[0]}')
+        self.db.commit()
 
     @with_cursor
     def fetch_data(self, query: str):
         self.cur.execute(query)
-        return self.cur.fetchall()
+        data = self.cur.fetchall()
+        # noinspection PyUnresolvedReferences
+        cols = self.cur.column_names
+        # cols = [x[0] for x in self.cur.description]
+        return pd.DataFrame(data, columns=cols)
+
+    @with_cursor
+    def execute(self, query: str):
+        self.cur.execute(query)
+        self.db.commit()
 
     @with_cursor
     def add_channels_data(self, _df: pd.DataFrame):
         _df = _df[['id', 'thumbnails', 'title', 'description', 'viewCount', 'subscriberCount', 'videoCount']]
-        _df.apply(lambda x: self.insert_data('channels', **x), axis=1)
+        # _df.apply(lambda x: self.insert_data('channels', **x), axis=1)
+        for i, r in _df.iterrows():
+            try:
+                self.insert_data('channels', **r)
+            except Exception as e:
+                if str(e).startswith('1062 (23000): Duplicate entry'):
+                    self.update_data('channels', **r)
+                else:
+                    raise e
 
     @with_cursor
     def add_playlists_data(self, _df: pd.DataFrame):
-        _df = _df[['id', 'channelId', 'thumbnails', 'title', 'description', 'itemCount']]
-        _df.apply(lambda x: self.insert_data('playlists', **x), axis=1)
+        _df = _df[['id', 'channelId', 'thumbnails', 'title', 'description', 'publishedAt', 'itemCount']]
+        _df.publishedAt = _df.publishedAt.apply(lambda x: x.split('Z')[0].replace('T', ' '))
+        # _df.apply(lambda x: self.insert_data('playlists', **x), axis=1)
+        for i, r in _df.iterrows():
+            try:
+                self.insert_data('playlists', **r)
+            except Exception as e:
+                if str(e).startswith('1062 (23000): Duplicate entry'):
+                    self.update_data('playlists', **r)
+                elif str(e).startswith('1452 (23000): Cannot add or update a child row'):
+                    st.toast(f':red[{e}]')
+                else:
+                    raise e
 
     @with_cursor
     def add_videos_data(self, _df: pd.DataFrame):
-        _df = _df[['id', 'channelId', 'playlistId', 'thumbnails', 'title', 'description',
-                   'duration', 'viewCount', 'likeCount', 'commentCount']]
-        _df.apply(lambda x: self.insert_data('videos', **x), axis=1)
-        # for i, r in _df.iterrows():
-        #     try:
-        #         self.insert_data('videos', **r)
-        #     except Exception as e:
-        #         print(e)
-        #         self.update_data('videos', **r)
+        _df = _df[['id', 'channelId', 'playlistId', 'thumbnails', 'title', 'description', 'publishedAt',
+                   'duration', 'viewCount', 'likeCount', 'dislikeCount', 'commentCount']]
+        _df.duration = _df.duration.apply(lambda x: str(x)[-8:])
+        # _df.apply(lambda x: self.insert_data('videos', **x), axis=1)
+        for i, r in _df.iterrows():
+            try:
+                self.insert_data('videos', **r)
+            except Exception as e:
+                if str(e).startswith('1062 (23000): Duplicate entry'):
+                    self.update_data('videos', **r)
+                elif str(e).startswith('1452 (23000): Cannot add or update a child row'):
+                    st.toast(f':red[{e}]')
+                else:
+                    raise e
 
     @with_cursor
     def add_comments_data(self, df: pd.DataFrame):
@@ -142,14 +178,13 @@ class YTAPI(object):
                 # self.yt_apis.remove(_yt)
                 print(e)
 
-    def playlists_list(self, _channel_id: str, _page_token: str | None = None):
+    def playlists_list(self, **kwargs):
         for _yt in self.yt_apis:
             try:
                 _res = _yt.playlists().list(
                     part='snippet,contentDetails',
-                    pageToken=_page_token,
                     maxResults=50,
-                    channelId=_channel_id).execute()
+                    **kwargs).execute()
                 return _res
             except Exception as e:
                 print(e)
@@ -198,27 +233,29 @@ class YTAPI(object):
         df = _df.apply(lambda x: eval(es), axis=1, result_type='expand')
         return df
 
-    def get_playlists_df(self, _channel_id: str):
+    def get_playlists_df(self, **kwargs):
         es = '''{'id': x.id, 'channelId': x.snippet['channelId'],
         'thumbnails': x.snippet['thumbnails']['default']['url'], 'title': x.snippet['title'],
-        'description': x.snippet['description'], 'itemCount': int(x.contentDetails['itemCount'])}'''
+        'description': x.snippet['description'], 'publishedAt': x.snippet['publishedAt'],
+        'itemCount': int(x.contentDetails['itemCount'])}'''
 
-        res = self.playlists_list(_channel_id)
+        res = self.playlists_list(**kwargs)
         _df = pd.DataFrame(res['items'])
         df = _df.apply(lambda x: eval(es), axis=1, result_type='expand')
 
         while res.get('nextPageToken'):
-            res = self.playlists_list(_channel_id, res.get('nextPageToken'))
+            res = self.playlists_list(pageToken=res.get('nextPageToken'), **kwargs)
             _df = pd.DataFrame(res['items'])
             df = pd.concat([df, _df.apply(lambda x: eval(es), axis=1, result_type='expand')])
 
         return df
 
     def get_videos_df(self, _playlist_id: str):
-        es = '''{'id': x.id, 'channelId': x.snippet["channelId"], 'playlistId': _playlist_id,
+        es = '''{'id': x.id, 'channelId': x.snippet["channelId"], 'playlistId': '',
         'thumbnails': x.snippet['thumbnails']['default']['url'], 'title': x.snippet['title'],
-        'description': x.snippet['description'], 'duration': x.contentDetails['duration'],
-        'viewCount': int(x.statistics['viewCount']), 'likeCount': int(x.statistics['likeCount']),
+        'description': x.snippet['description'], 'publishedAt': x.snippet['publishedAt'],
+        'duration': x.contentDetails['duration'], 'viewCount': int(x.statistics.get('viewCount', 0)),
+        'likeCount': int(x.statistics.get('likeCount', 0)), 'dislikeCount': int(x.statistics.get('dislikeCount', 0)),
         'commentCount': int(x.statistics.get('commentCount', 0))}'''
         data = []
 
@@ -229,9 +266,20 @@ class YTAPI(object):
         while res.get('nextPageToken'):
             res = self.playlist_items_list(_playlist_id, res.get('nextPageToken'))
             vid = [x['snippet']['resourceId']['videoId'] for x in res['items']]
-            data.extend(self.videos_list(','.join(vid))['items'])
+            try:
+                data.extend(self.videos_list(','.join(vid))['items'])
+            except TypeError:
+                print(vid)
+                print('='*100)
+                print(res['items'])
+                print('=' * 100)
+                # data.extend(self.videos_list(','.join(vid))['items'])
 
         df = pd.DataFrame(data).apply(lambda x: eval(es), axis=1, result_type='expand')
+        if not df.empty:
+            df.playlistId = _playlist_id
+            df.publishedAt = df.publishedAt.apply(lambda x: x.split('Z')[0].replace('T', ' '))
+            df.duration = pd.to_timedelta(df.duration.str[1:].str.replace('T', '').str.lower())
 
         return df
 
@@ -245,8 +293,8 @@ if __name__ == '__main__':
     yt_db = yt_db or YTDataBase('localhost', 'root', 'root', 3306)
     st.session_state.update({'yt_db': yt_db})
 
-    st.button('create table', on_click=lambda: yt_db.set_database())
     '# Hi, Welcome to my Page 🎉'
+    ''
     with open('README.md', 'r') as f:
-        for l in f.readlines():
-            st.markdown(l)
+        for li in f.readlines():
+            st.markdown(li)
