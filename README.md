@@ -1,22 +1,17 @@
 # GUVI Capstone Project 1
-
 YouTube Data Harvesting and Warehousing using SQL and Streamlit.
 
 ## Problem Statement:
-  
-  The problem statement is to create a `Streamlit` application that allows users to access and analyze data from multiple YouTube channels.
+The problem statement is to create a `Streamlit` application that allows users to access and analyze data from multiple YouTube channels.
   
 ### The application should have the following features:
-  
 1. Ability to input a YouTube channel ID and retrieve all the relevant data (Channel name, subscribers, total video count, playlist ID, video ID, likes, dislikes, comments of each video) using **Google API**.
-  
 2. Ability to collect data for up to 10 different YouTube channels and store them in the data lake by clicking a button.
-
 3. Option to store the data in a `MYSQL` or `PostgreSQL`.
-  
 4. Ability to search and retrieve data from the **SQL database** using different search options, including joining tables to get channel details.
       
 ## Approach:
+
 ### 1. Set up a Streamlit app:
 `Streamlit` is a great choice for building data visualization and analysis tools quickly and easily. You can use `Streamlit` to create a simple UI where users can enter a YouTube channel ID, view the channel details, and select channels to migrate to the data warehouse.
 
@@ -37,3 +32,18 @@ You can use SQL queries to join the tables in the SQL data warehouse and retriev
 Finally, you can display the retrieved data in the `Streamlit` app. You can use Streamlit's data visualization features to create charts and graphs to help users analyze the data.
 
 Overall, this approach involves building a simple **UI** with **Streamlit**, retrieving data from the **YouTube API**, storing the **data SQL** as a **warehouse**, querying the data warehouse with **SQL**, and displaying the data in the **Streamlit app**.
+
+### SQL Query Output need to displayed as table in Streamlit Application:
+01. What are the names of all the videos and their corresponding channels? 
+02. Which channels have the most number of videos, and how many videos do they have?
+03. What are the top 10 most viewed videos and their respective channels?
+04. How many comments were made on each video, and what are their corresponding video names?
+05. Which videos have the highest number of likes, and what are their corresponding channel names?
+06. What is the total number of likes and dislikes for each video, and what are their corresponding video names?
+07. What is the total number of views for each channel, and what are their corresponding channel names?
+08. What are the names of all the channels that have published videos in the year 2022?
+09. What is the average duration of all videos in each channel, and what are their corresponding channel names?
+10. Which videos have the highest number of comments, and what are their corresponding channel names?
+
+### Results: 
+This project aims to develop a user-friendly Streamlit application that utilizes the Google API to extract information on a YouTube channel, stores it in a SQL database, and enables use
