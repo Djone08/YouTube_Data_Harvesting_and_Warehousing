@@ -21,7 +21,7 @@ def set_row_srh(_data: pd.Series):
         ''
         ''
         if _data.check:
-            st.success('Added', icon='✅')
+            st.success('Added', icon='✔️')
         else:
             if st.session_state.get(f'srh_{_data.channelId}'):
                 st.session_state.chn_add_lst.append(pd.Series(_data))
@@ -33,10 +33,12 @@ def set_row_srh(_data: pd.Series):
             st.button('➕ In List'if btn_state else '➕ Add', key=f'srh_{_data.channelId}', disabled=btn_state)
 
     with c2:
-        st.write(f'''<p>
-        <img src="{_data.logo}"
-        alt="logo" title="{_data.channelTitle}" style="border-radius:50%" />
-        </p>
+        st.write(f'''<a
+            href="https://www.youtube.com/channel/{_data.channelId}"
+            traget="_blank">
+            <img src="{_data.logo}"
+            alt="thumbnails" title="{_data.channelTitle}" style="border-radius:50%" />
+            </a>
         ''', unsafe_allow_html=True)
 
     with c3:
@@ -50,10 +52,12 @@ def set_row_add(_data: pd.Series):
     c1, c2, c3 = st.columns([.2, .6, .2])
 
     with c1:
-        st.write(f'''<p>
-        <img src="{_data.logo}"
-        alt="logo" title="{_data.channelTitle}" style="border-radius:50%" />
-        </p>
+        st.write(f'''<a
+            href="https://www.youtube.com/channel/{_data.channelId}"
+            traget="_blank">
+            <img src="{_data.logo}"
+            alt="thumbnails" title="{_data.channelTitle}" style="border-radius:50%" />
+            </a>
         ''', unsafe_allow_html=True)
 
     with c2:
@@ -82,38 +86,46 @@ def add_to_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
         s.update(label='Fetching Channel Data...')
         ch_df = yt_api.get_channels_df(_channel_id)
         yt_db.add_channels_data(ch_df)
-        s.write('Channel Data DownLoaded ✅')
+        s.write('Channel Data DownLoaded ✔️')
         s.update(label='Fetching All Videos Playlist...')
-        pl_df = yt_api.get_playlists_df(id=ch_df['uploads'].iloc[0])
-        yt_db.add_playlists_data(pl_df)
-        s.update(label='Fetching Videos Data...')
-        v_df = pd.concat([yt_api.get_videos_df(x) for x in ch_df['uploads']])
-        yt_db.add_videos_data(v_df)
-        s.write('Videos Data DownLoaded ✅')
-        s.update(label='Fetching Playlists Data...')
-        pl_df = yt_api.get_playlists_df(channelId=_channel_id)
-        yt_db.add_playlists_data(pl_df)
-        s.write('Playlists Data DownLoaded ✅')
-        s.update(label='Adding Playlist Id in Videos Data...')
-        v_df = pd.concat([yt_api.get_videos_df(x) for x in pl_df['id']])
-        yt_db.add_videos_data(v_df)
-        s.write('Playlist Id Added ✅')
-        s.update(label='Fetching comments Data...')
-        c_df = yt_api.get_comments_df(_channel_id)
-        yt_db.add_comments_data(c_df)
-        s.write('comments Data DownLoaded ✅')
+        pl_df = yt_api.get_playlists_df(id=ch_df.uploads.iloc[0])
+        if not pl_df.empty:
+            yt_db.add_playlists_data(pl_df)
+            s.update(label='Fetching Videos Data...')
+            vi_df = pd.concat([yt_api.get_videos_df(x) for x in ch_df['uploads']])
+            yt_db.add_videos_data(vi_df)
+            s.write('Videos Data DownLoaded ✔️')
+            s.update(label='Fetching Playlists Data...')
+            pl_df = yt_api.get_playlists_df(channelId=_channel_id)
+            if not pl_df.empty:
+                yt_db.add_playlists_data(pl_df)
+                s.write('Playlists Data DownLoaded ✔️')
+                s.update(label='Adding Playlist Id in Videos Data...')
+                vi_df = pd.concat([yt_api.get_videos_df(x) for x in pl_df['id']])
+                yt_db.add_videos_data(vi_df)
+                s.write('Playlist Id Added ✔️')
+            else:
+                s.write('The Channel Has No Playlists ❌')
+            s.update(label='Fetching comments Data...')
+            c_df = yt_api.get_comments_df(_channel_id)
+            yt_db.add_comments_data(c_df)
+            s.write('comments Data DownLoaded ✔️')
+        else:
+            s.write('The Channel Has No Video Uploads ❌')
+        s.write('Channel Loaded to Library ✔️')
 
 
 if __name__ == '__main__':
-    yt_api = st.session_state.get('yt_api')
-    yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
-    # yt_api = yt_api or YTAPI(['AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc'])
-    st.session_state.update({'yt_api': yt_api})
+    try:
+        yt_api = st.session_state.get('yt_api')
+        yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
+        st.session_state.update({'yt_api': yt_api})
 
-    yt_db = st.session_state.get('yt_db')
-    yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
-    # yt_db = yt_db or YTDataBase('localhost', 'root', 'root', '3306')
-    st.session_state.update({'yt_db': yt_db})
+        yt_db = st.session_state.get('yt_db')
+        yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
+        st.session_state.update({'yt_db': yt_db})
+    except AttributeError:
+        st.switch_page('About.py')
 
     tab_1, tab_2 = st.tabs(['search Channels', 'Add Channels'])
 
