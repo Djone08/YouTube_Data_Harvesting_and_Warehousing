@@ -38,6 +38,19 @@ def upd_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
         s.write('Channel Loaded to Library ✔️')
 
 
+def yt_count_converter(n: int):
+    if n < 10**3:
+        return f'{n}'
+    elif n < 10**6:
+        return f'{round(n/10**3, 1)} K'
+    elif n < 10**9:
+        return f'{round(n/10**6, 2)} M'
+    elif n < 10**12:
+        return f'{round(n/10**6, 3)} B'
+    elif n < 10**15:
+        return f'{round(n/10**9, 3)} T'
+
+
 def set_row_lib(_data: pd.Series):
     r1c1, r1c2, r1c3 = st.columns([.2, .6, .2])
     r2c1, r2c2, r2c3, r2c4 = st.columns([.1, .25, .2, .45])
@@ -53,7 +66,8 @@ def set_row_lib(_data: pd.Series):
 
     with r1c2:
         st.write(f'### {_data.title}')
-        st.caption(f'Subscribers: {_data.subscriberCount} \\\n Videos: {_data.videoCount}')
+        st.caption(f'''Subscribers: {yt_count_converter(_data.subscriberCount)}\\
+        Videos: {yt_count_converter(_data.videoCount)}''')
 
     with r1c3:
         ''
@@ -70,10 +84,10 @@ def set_row_lib(_data: pd.Series):
         st.button('🗑️ Deleted' if del_btn_state else '🗑️ Delete', key=f'del_{_data.id}', disabled=del_btn_state)
         st.button('🛠️ Updated' if upd_btn_state else '🛠️ Update', key=f'upd_{_data.id}', disabled=upd_btn_state)
 
-    with r2c2.popover('💬 Description'):
+    with r2c2.popover('💬 Description', help='Description'):
         st.caption(_data.description)
 
-    with r2c3.popover(f'🧾 Playlists'):
+    with r2c3.popover(f'🧾 Playlists', help='Playlists'):
         n = st.session_state.get(f'n_pl_{_data.id}') or 5
         pl_df = yt_db.fetch_data(f'''select id, thumbnails, title from playlists
         where channelId={_data.id!r}
@@ -91,20 +105,20 @@ def set_row_lib(_data: pd.Series):
         n += 5 if st.button('more', key=f'pl_{_data.id}', disabled=len(pl_df) <= n) else 0
         st.session_state[f'n_pl_{_data.id}'] = n
 
-    with r2c4.popover('▶ Videos'):
+    with r2c4.popover('▶ Videos', help='Videos'):
         vi_df = yt_db.fetch_data(f'''select id, thumbnails, title from videos
         where channelId={_data.id!r}
         order by publishedAt desc''')
         _n = st.session_state.get(f'n_vl_{_data.id}') or 5
         for _i, vi in vi_df.head(_n).iterrows():
-            pc1, pc2 = st.columns([.3, .5])
-            pc1.write(f'''<a
+            vc1, vc2 = st.columns([.3, .5])
+            vc1.write(f'''<a
             href="https://www.youtube.com/video/{vi.id}"
             traget="_blank">
             <img src="{vi.thumbnails}"
             alt="thumbnails" title="{vi.id}" style="border-radius:5%" />
             </a>''', unsafe_allow_html=True)
-            pc2.write(vi.title)
+            vc2.write(vi.title)
             st.divider()
         _n += 5 if st.button('more', key=f'vl_{_data.id}', disabled=len(vi_df) <= _n) else 0
         st.session_state[f'n_vl_{_data.id}'] = int(_n)
