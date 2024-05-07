@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from streamlit.delta_generator import DeltaGenerator
-from About import set_creds, YTDataBase, YTAPI
+from About import set_creds
 
 
 def on_search(_txt: str):
