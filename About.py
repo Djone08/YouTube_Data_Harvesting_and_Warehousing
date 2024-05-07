@@ -2,23 +2,23 @@ from functools import wraps
 import pandas as pd
 import streamlit as st
 from typing import Literal
-import mysql.connector as db
+import sqlite3 as db
 from googleapiclient.discovery import build
 
 
 class YTDataBase(object):
-    def __init__(self, host: str, user: str,
-                 password: str, port: str, schema: str | None = None):
-        schema = schema if schema and schema.isidentifier() else 'yt_db'
-        self.db = db.connect(host=host, user=user, password=password, port=int(port))
+    def __init__(self, data_base: str | None = None):
+        self.data_base = data_base or 'database.db'
+        self.db = db.connect(self.data_base)
         self.cur = self.db.cursor()
         self.cur.close()
-        self.set_database(schema)
+        self.set_database(self.data_base)
 
     @staticmethod
     def with_cursor(func):
         @wraps(func)
         def wrapper_func(self, *args, **kwargs):
+            self.db = db.connect(self.data_base)
             self.cur = self.db.cursor()
             value = func(self, *args, **kwargs)
             self.cur.close()
@@ -27,8 +27,8 @@ class YTDataBase(object):
 
     @with_cursor
     def set_database(self, db_name: str):
-        self.cur.execute(f'create database if not exists {db_name}')
-        self.cur.execute(f'use {db_name}')
+        # self.cur.execute(f'create database if not exists {db_name}')
+        # self.cur.execute(f'use {db_name}')
 
         self.cur.execute('''create table if not exists channels(
                 id varchar(255) not null,
@@ -103,8 +103,8 @@ class YTDataBase(object):
         self.cur.execute(query)
         data = self.cur.fetchall()
         # noinspection PyUnresolvedReferences
-        cols = self.cur.column_names
-        # cols = [x[0] for x in self.cur.description]
+        # cols = self.cur.column_names
+        cols = [x[0] for x in self.cur.description]
         return pd.DataFrame(data, columns=cols)
 
     @with_cursor
@@ -341,14 +341,13 @@ def set_creds() -> [YTAPI, YTDataBase]:
     _api = st.session_state.get('yt_api') or YTAPI(st.session_state.yt_api_creds)
     st.session_state['yt_api'] = _api
 
-    _db = st.session_state.get('yt_db') or YTDataBase(**st.session_state.yt_db_creds)
+    _db = st.session_state.get('yt_db') or YTDataBase()
     st.session_state['yt_db'] = _db
 
     return _api, _db
 
 
 if __name__ == '__main__':
-    st.secrets.YouTubeDataBase
     yt_api, yt_db = set_creds()
     '# Hi, Welcome to my Page 🎉'
     ''
