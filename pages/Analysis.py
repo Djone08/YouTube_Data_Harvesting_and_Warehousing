@@ -1,19 +1,10 @@
 import streamlit as st
 # import pandas as pd
-from About import YTAPI, YTDataBase
+from About import set_creds
 
 
 if __name__ == '__main__':
-    try:
-        yt_api = st.session_state.get('yt_api')
-        yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
-        st.session_state.update({'yt_api': yt_api})
-
-        yt_db = st.session_state.get('yt_db')
-        yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
-        st.session_state.update({'yt_db': yt_db})
-    except AttributeError:
-        st.switch_page('About.py')
+    yt_api, yt_db = set_creds()
 
     questions = [
         '01.What are the names of all the videos and their corresponding channels?',

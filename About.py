@@ -332,7 +332,7 @@ class YTAPI(object):
         return df
 
 
-if __name__ == '__main__':
+def set_creds() -> [YTAPI, YTDataBase]:
     if not st.session_state.get('yt_api_creds'):
         cfg = ConfigParser()
         cfg.read('Config.ini')
@@ -345,14 +345,17 @@ if __name__ == '__main__':
         db_cred = dict(cfg.items('YouTubeDataBase'))
         st.session_state['yt_db_creds'] = db_cred
 
-    yt_api = st.session_state.get('yt_api')
-    yt_api = yt_api or YTAPI(st.session_state.yt_api_creds)
-    st.session_state.update({'yt_api': yt_api})
+    _api = st.session_state.get('yt_api') or YTAPI(st.session_state.yt_api_creds)
+    st.session_state['yt_api'] = _api
 
-    yt_db = st.session_state.get('yt_db')
-    yt_db = yt_db or YTDataBase(**st.session_state.yt_db_creds)
-    st.session_state.update({'yt_db': yt_db})
+    _db = st.session_state.get('yt_db') or YTDataBase(**st.session_state.yt_db_creds)
+    st.session_state['yt_db'] = _db
 
+    return _api, _db
+
+
+if __name__ == '__main__':
+    yt_api, yt_db = set_creds()
     '# Hi, Welcome to my Page 🎉'
     ''
     with open('README.md', 'r') as f:
