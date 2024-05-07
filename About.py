@@ -116,7 +116,7 @@ class YTDataBase(object):
     @with_cursor
     def add_channels_data(self, _df: pd.DataFrame):
         _df = _df[['id', 'thumbnails', 'title', 'description', 'viewCount', 'subscriberCount', 'videoCount']]
-        # _df.apply(lambda x: self.insert_data('channels', **x), axis=1)
+
         for i, r in _df.iterrows():
             try:
                 self.insert_data('channels', **r)
@@ -130,7 +130,7 @@ class YTDataBase(object):
     def add_playlists_data(self, _df: pd.DataFrame):
         _df = _df[['id', 'channelId', 'thumbnails', 'title', 'description', 'publishedAt', 'itemCount']]
         _df.publishedAt = _df.publishedAt.apply(lambda x: x.split('Z')[0].replace('T', ' '))
-        # _df.apply(lambda x: self.insert_data('playlists', **x), axis=1)
+
         for i, r in _df.iterrows():
             try:
                 self.insert_data('playlists', **r)
@@ -147,7 +147,7 @@ class YTDataBase(object):
         _df = _df[['id', 'channelId', 'playlistId', 'thumbnails', 'title', 'description', 'publishedAt',
                    'duration', 'viewCount', 'likeCount', 'dislikeCount', 'commentCount']]
         _df.duration = _df.duration.apply(lambda x: str(x)[-8:])
-        # _df.apply(lambda x: self.insert_data('videos', **x), axis=1)
+
         for i, r in _df.iterrows():
             try:
                 self.insert_data('videos', **r)
@@ -165,7 +165,7 @@ class YTDataBase(object):
                    'textOriginal', 'likeCount', 'publishedAt', 'updatedAt']]
         _df.publishedAt = _df.publishedAt.apply(lambda x: x.split('Z')[0].replace('T', ' '))
         _df.updatedAt = _df.updatedAt.apply(lambda x: x.split('Z')[0].replace('T', ' '))
-        # _df.apply(lambda x: self.insert_data('comments', **x), axis=1)
+
         for i, r in _df.iterrows():
             try:
                 self.insert_data('comments', **r)
@@ -333,12 +333,7 @@ class YTAPI(object):
 
 
 def set_creds() -> [YTAPI, YTDataBase]:
-    if not st.session_state.get('yt_api_creds'):
-        st.session_state['yt_api_creds'] = st.secrets.YouTubeAPI['apis']
-
-    if not st.session_state.get('yt_db_creds'):
-        st.session_state['yt_db_creds'] = dict(st.secrets.YouTubeDataBase)
-
+    st.session_state['yt_api_creds'] = st.session_state.get('yt_api_creds') or st.secrets.YouTubeAPI['apis']
     _api = st.session_state.get('yt_api') or YTAPI(st.session_state.yt_api_creds)
     st.session_state['yt_api'] = _api
 
