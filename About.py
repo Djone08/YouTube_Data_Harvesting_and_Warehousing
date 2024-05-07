@@ -4,7 +4,6 @@ from functools import wraps
 import pandas as pd
 from typing import Literal
 import streamlit as st
-from configparser import ConfigParser
 
 
 class YTDataBase(object):
@@ -334,16 +333,10 @@ class YTAPI(object):
 
 def set_creds() -> [YTAPI, YTDataBase]:
     if not st.session_state.get('yt_api_creds'):
-        cfg = ConfigParser()
-        cfg.read('Config.ini')
-        apis = list(dict(cfg.items('YouTubeAPI')).values())
-        st.session_state['yt_api_creds'] = [x for x in apis if x]
+        st.session_state['yt_api_creds'] = st.secrets.YouTubeAPI['apis']
 
     if not st.session_state.get('yt_db_creds'):
-        cfg = ConfigParser()
-        cfg.read('Config.ini')
-        db_cred = dict(cfg.items('YouTubeDataBase'))
-        st.session_state['yt_db_creds'] = db_cred
+        st.session_state['yt_db_creds'] = dict(st.secrets.YouTubeDataBase)
 
     _api = st.session_state.get('yt_api') or YTAPI(st.session_state.yt_api_creds)
     st.session_state['yt_api'] = _api
@@ -355,6 +348,7 @@ def set_creds() -> [YTAPI, YTDataBase]:
 
 
 if __name__ == '__main__':
+    st.write(dict(st.secrets.YouTubeDataBase))
     yt_api, yt_db = set_creds()
     '# Hi, Welcome to my Page 🎉'
     ''
