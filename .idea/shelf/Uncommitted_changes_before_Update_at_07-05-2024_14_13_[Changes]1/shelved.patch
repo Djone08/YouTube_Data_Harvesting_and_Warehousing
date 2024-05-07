@@ -1,0 +1,30 @@
+Index: Config.ini
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>[YouTubeAPI]\r\napi_1=\r\napi_2=\r\napi_3=\r\n\r\n[YouTubeDataBase]\r\nhost=\r\nuser=\r\npassword=\r\nport=\r\nschema=
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Config.ini b/Config.ini
+--- a/Config.ini	
++++ b/Config.ini	
+@@ -1,11 +1,11 @@
+ [YouTubeAPI]
+-api_1=
++api_1=AIzaSyBii7IbnVXI3CD1GIQ5tutU4bWmCxnVBHc
+ api_2=
+ api_3=
+ 
+ [YouTubeDataBase]
+-host=
+-user=
+-password=
+-port=
+-schema=
+\ No newline at end of file
++host=localhost
++user=root
++password=root
++port=3306
++schema=yt_db
+\ No newline at end of file
