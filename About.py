@@ -7,12 +7,12 @@ from googleapiclient.discovery import build
 
 
 class YTDataBase(object):
-    def __init__(self, data_base: str | None = None):
-        self.data_base = data_base or 'database.db'
+    cur: db.Cursor
+
+    def __init__(self, data_base_path: str | None = None):
+        self.data_base = data_base_path or 'database.db'
         self.db = db.connect(self.data_base)
-        self.cur = self.db.cursor()
-        self.cur.close()
-        self.set_database(self.data_base)
+        self.set_tables()
 
     @staticmethod
     def with_cursor(func):
@@ -26,9 +26,8 @@ class YTDataBase(object):
         return wrapper_func
 
     @with_cursor
-    def set_database(self, db_name: str):
-        # self.cur.execute(f'create database if not exists {db_name}')
-        # self.cur.execute(f'use {db_name}')
+    def set_tables(self):
+        self.cur.execute('pragma foreign_keys = 1')
 
         self.cur.execute('''create table if not exists channels(
                 id varchar(255) not null,
@@ -49,7 +48,7 @@ class YTDataBase(object):
                 publishedAt datetime,
                 itemCount int,
                 constraint playlists_channelId_fk foreign key (channelId)
-                references channels(id) on delete cascade,
+                references channels(id) on update restrict on delete cascade,
                 primary key (id))''')
 
         self.cur.execute('''create table if not exists videos(
@@ -66,9 +65,9 @@ class YTDataBase(object):
                 dislikeCount bigint,
                 commentCount bigint,
                 constraint videos_channelId_fk foreign key (channelId)
-                references channels(id) on delete cascade,
+                references channels(id) on update restrict on delete cascade,
                 constraint videos_playlistId_fk foreign key (playlistId)
-                references playlists(id) on delete cascade,
+                references playlists(id) on update restrict on delete cascade,
                 primary key (id))''')
 
         self.cur.execute('''create table if not exists comments(
@@ -82,9 +81,9 @@ class YTDataBase(object):
                 publishedAt datetime,
                 updatedAt datetime,
                 constraint comments_channelId_fk foreign key (channelId)
-                references channels(id) on delete cascade,
+                references channels(id) on update restrict on delete cascade,
                 constraint comments_videoId_fk foreign key (videoId)
-                references videos(id) on delete cascade,
+                references videos(id) on update restrict on delete cascade,
                 primary key (id))''')
 
     def insert_data(self, _table_name: str, **kwargs):
@@ -95,8 +94,9 @@ class YTDataBase(object):
         self.db.commit()
 
     def update_data(self, _table_name: str, **kwargs):
-        _data = [f'{a}={b!r}' for a, b in zip(kwargs.keys(), kwargs.values())]
-        self.cur.execute(f'update {_table_name} set {",".join(_data[1:])} where {_data[0]}')
+        _data = list(kwargs.values())
+        _data_filler = ','.join([f'{x}=?' for x in kwargs if x != 'id'])
+        self.cur.execute(f'update {_table_name} set {_data_filler} where id = {_data[0]!r}', _data[1:])
         self.db.commit()
 
     @with_cursor
@@ -121,7 +121,7 @@ class YTDataBase(object):
             try:
                 self.insert_data('channels', **r)
             except Exception as e:
-                if str(e).startswith('1062 (23000): Duplicate entry'):
+                if str(e).startswith('UNIQUE constraint failed:'):
                     self.update_data('channels', **r)
                 else:
                     raise e
@@ -135,9 +135,9 @@ class YTDataBase(object):
             try:
                 self.insert_data('playlists', **r)
             except Exception as e:
-                if str(e).startswith('1062 (23000): Duplicate entry'):
+                if str(e).startswith('UNIQUE constraint failed:'):
                     self.update_data('playlists', **r)
-                elif str(e).startswith('1452 (23000): Cannot add or update a child row'):
+                elif str(e).startswith('FOREIGN KEY constraint failed'):
                     st.toast(f':red[{e}]')
                 else:
                     raise e
@@ -152,9 +152,9 @@ class YTDataBase(object):
             try:
                 self.insert_data('videos', **r)
             except Exception as e:
-                if str(e).startswith('1062 (23000): Duplicate entry'):
+                if str(e).startswith('UNIQUE constraint failed:'):
                     self.update_data('videos', **r)
-                elif str(e).startswith('1452 (23000): Cannot add or update a child row'):
+                elif str(e).startswith('FOREIGN KEY constraint failed'):
                     st.toast(f':red[{e}]')
                 else:
                     raise e
@@ -170,7 +170,7 @@ class YTDataBase(object):
             try:
                 self.insert_data('comments', **r)
             except Exception as e:
-                if str(e).startswith('1062 (23000): Duplicate entry'):
+                if str(e).startswith('UNIQUE constraint failed:'):
                     self.update_data('comments', **r)
                 elif str(e).startswith('1452 (23000): Cannot add or update a child row'):
                     st.toast(f':red[{e}]')
