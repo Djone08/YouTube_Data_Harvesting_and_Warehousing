@@ -348,7 +348,7 @@ def set_creds() -> [YTAPI, YTDataBase]:
 
 
 if __name__ == '__main__':
-    dict(st.secrets.YouTubeDataBase)
+    st.secrets.YouTubeDataBase
     yt_api, yt_db = set_creds()
     '# Hi, Welcome to my Page 🎉'
     ''
