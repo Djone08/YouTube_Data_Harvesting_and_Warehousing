@@ -90,7 +90,8 @@ class YTDataBase(object):
     def insert_data(self, _table_name: str, **kwargs):
         _data = tuple(x for x in kwargs.values())
         _cols = ','.join(x for x in kwargs)
-        self.cur.execute(f'insert into {_table_name} ({_cols}) values {_data}')
+        _data_filler = ('?,' * len(_data))[:-1]
+        self.cur.execute(f'insert into {_table_name} ({_cols}) values ({_data_filler})', _data)
         self.db.commit()
 
     def update_data(self, _table_name: str, **kwargs):
