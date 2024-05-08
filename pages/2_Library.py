@@ -75,7 +75,7 @@ def set_row_lib(_data: pd.Series):
                          ][0]if st.session_state.get(f'del_{_data.id}') else False
         if not st.session_state.get(f'upd_st_{_data.id}'):
             ch_df = yt_api.get_channels_df(_data.id)
-            st.session_state[f'upd_st_{_data.id}'] = ch_df.iloc[0].isin(_data).all()
+            st.session_state[f'upd_st_{_data.id}'] = _data.isin(ch_df.iloc[0]).all()
 
         upd_btn_state = [True, st.session_state.update({f'upd_st_{_data.id}': True}), upd_db(_data.id, em)
                          ][0] if st.session_state.get(f'upd_{_data.id}') else any([
