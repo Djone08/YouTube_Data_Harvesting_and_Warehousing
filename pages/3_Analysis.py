@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
-from About import set_creds, YTDataBase
+from About import set_creds
 
 
 if __name__ == '__main__':
-    # yt_db = YTDataBase(r'D:\Coding\YouTube_Data_Harvesting_and_Warehousing\database.dbv')
     yt_api, yt_db = set_creds()
 
     questions = [
@@ -28,8 +27,8 @@ if __name__ == '__main__':
         videos.thumbnails as videoThumbnails, videos.title as videoTitle
         from videos inner join channels on videos.channelId = channels.id''')
         cc = {'channelThumbnails': st.column_config.ImageColumn(label='channelThumbnails'),
+              'channelTitle': st.column_config.TextColumn(label='channelTitle'),
               'videoThumbnails': st.column_config.ImageColumn(label='videoThumbnails')}
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[1]:
         df = yt_db.fetch_data(f'''select * from channels where videoCount = (select max(videoCount) from channels)''')
         col = st.columns([.2, .3, .5])
@@ -44,7 +43,6 @@ if __name__ == '__main__':
         channelId = df.id.iloc[0]
         df = yt_db.fetch_data(f'''select thumbnails, title, description from videos where channelId = {channelId!r}''')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[2]:
         df = yt_db.fetch_data('''select channels.thumbnails as channelThumbnails,
         channels.title as channelTitle, videos.thumbnails as videoThumbnails,
@@ -53,11 +51,9 @@ if __name__ == '__main__':
         order by videoViewCount desc limit 10''')
         cc = {'channelThumbnails': st.column_config.ImageColumn(label='channelThumbnails'),
               'videoThumbnails': st.column_config.ImageColumn(label='videoThumbnails')}
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[3]:
         df = yt_db.fetch_data('select thumbnails, title, commentCount from videos')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[4]:
         df = yt_db.fetch_data('''select channels.thumbnails as channelThumbnails,
         channels.title as channelTitle, videos.thumbnails as videoThumbnails, videos.title as videoTile,
@@ -66,15 +62,12 @@ if __name__ == '__main__':
         order by videoLikeCount desc''')
         cc = {'channelThumbnails': st.column_config.ImageColumn(label='channelThumbnails'),
               'videoThumbnails': st.column_config.ImageColumn(label='videoThumbnails')}
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[5]:
         df = yt_db.fetch_data('select thumbnails, title, (likeCount+dislikeCount) as sumOfLikeAndDislike from videos')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[6]:
         df = yt_db.fetch_data('select thumbnails, title, viewCount from channels')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[7]:
         # df = yt_db.fetch_data('select duration, publishedAt from videos')
         # print(df, df.dtypes, pd.to_datetime(df.publishedAt), pd.to_timedelta(df.duration))
@@ -84,7 +77,6 @@ if __name__ == '__main__':
         inner join channels on channels.id = videos.channelId
         where strftime("%Y", videos.publishedAt)="2022"''')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[8]:
         # df = yt_db.fetch_data('''select channels.thumbnails as thumbnails, channels.title as title,
         # sec_to_time(avg(time_to_sec(videos.duration))) as averageDurationPerVideo from videos
@@ -98,7 +90,6 @@ if __name__ == '__main__':
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails'),
               'averageDurationPerVideo': st.column_config.TimeColumn(label='averageDurationPerVideo')
               }
-        st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[9]:
         df = yt_db.fetch_data('''select channels.thumbnails as channelThumbnails,
         channels.title as channelTitle, videos.thumbnails as videoThumbnails,
@@ -107,4 +98,11 @@ if __name__ == '__main__':
         order by videoCommentCount desc''')
         cc = {'channelThumbnails': st.column_config.ImageColumn(label='channelThumbnails'),
               'videoThumbnails': st.column_config.ImageColumn(label='videoThumbnails')}
+    else:
+        df = pd.DataFrame()
+        cc = {}
+
+    if df.empty and not cc:
+        st.info(':blue[Add Channels to the list Using Channel Search]', icon='ℹ️')
+    else:
         st.dataframe(df, column_config=cc, hide_index=True)
