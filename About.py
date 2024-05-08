@@ -2,24 +2,40 @@ from functools import wraps
 import pandas as pd
 import streamlit as st
 from typing import Literal
-import sqlite3 as db
+import sqlite3
+import mysql.connector as db
 from googleapiclient.discovery import build
 
 
 class YTDataBase(object):
-    cur: db.Cursor
+    def __init__(self, db_type: Literal['sqlite', 'mysql'] | None = 'sqlite', host: str | None = None,
+                 user: str | None = None, password: str | None = None, port: int | None = None,
+                 schema: str | None = None, data_base_path: str | None = None):
+        self.db_type = db_type
 
-    def __init__(self, data_base_path: str | None = None):
-        self.data_base = data_base_path or 'database.db'
-        self.db = db.connect(self.data_base)
+        if self.db_type == 'mysql':
+            self.db = db.connect(host=host, user=user, password=password, port=port)
+        elif self.db_type == 'sqlite':
+            self.data_base = data_base_path or 'database.db'
+            self.db = sqlite3.connect(self.data_base)
+
+        self.cur = self.db.cursor()
+        if self.db_type == 'mysql':
+            self.cur.execute(f'create database if not exists {schema}')
+            self.cur.execute(f'use {schema}')
+        self.cur.close()
+
         self.set_tables()
 
     @staticmethod
     def with_cursor(func):
         @wraps(func)
         def wrapper_func(self, *args, **kwargs):
-            self.db = db.connect(self.data_base)
+            if self.db_type == 'sqlite':
+                self.db = sqlite3.connect(self.data_base)
             self.cur = self.db.cursor()
+            if self.db_type == 'sqlite':
+                self.cur.execute('pragma foreign_keys = 1')
             value = func(self, *args, **kwargs)
             self.cur.close()
             return value
@@ -27,8 +43,6 @@ class YTDataBase(object):
 
     @with_cursor
     def set_tables(self):
-        self.cur.execute('pragma foreign_keys = 1')
-
         self.cur.execute('''create table if not exists channels(
                 id varchar(255) not null,
                 thumbnails varchar(255),
@@ -89,22 +103,27 @@ class YTDataBase(object):
     def insert_data(self, _table_name: str, **kwargs):
         _data = tuple(x for x in kwargs.values())
         _cols = ','.join(x for x in kwargs)
-        _data_filler = ('?,' * len(_data))[:-1]
-        self.cur.execute(f'insert into {_table_name} ({_cols}) values ({_data_filler})', _data)
+        if self.db_type == 'sqlite':
+            _data_filler = ('?,' * len(_data))[:-1]
+            self.cur.execute(f'insert into {_table_name} ({_cols}) values ({_data_filler})', _data)
+        elif self.db_type == 'mysql':
+            self.cur.execute(f'insert into {_table_name} ({_cols}) values {_data}')
         self.db.commit()
 
     def update_data(self, _table_name: str, **kwargs):
-        _data = list(kwargs.values())
-        _data_filler = ','.join([f'{x}=?' for x in kwargs if x != 'id'])
-        self.cur.execute(f'update {_table_name} set {_data_filler} where id = {_data[0]!r}', _data[1:])
+        if self.db_type == 'sqlite':
+            _data = list(kwargs.values())
+            _data_filler = ','.join([f'{x}=?' for x in kwargs if x != 'id'])
+            self.cur.execute(f'update {_table_name} set {_data_filler} where id = {_data[0]!r}', _data[1:])
+        elif self.db_type == 'mysql':
+            _data = [f'{a}={b!r}' for a, b in zip(kwargs.keys(), kwargs.values())]
+            self.cur.execute(f'update {_table_name} set {",".join(_data[1:])} where {_data[0]}')
         self.db.commit()
 
     @with_cursor
     def fetch_data(self, query: str):
         self.cur.execute(query)
         data = self.cur.fetchall()
-        # noinspection PyUnresolvedReferences
-        # cols = self.cur.column_names
         cols = [x[0] for x in self.cur.description]
         return pd.DataFrame(data, columns=cols)
 
@@ -121,7 +140,7 @@ class YTDataBase(object):
             try:
                 self.insert_data('channels', **r)
             except Exception as e:
-                if str(e).startswith('UNIQUE constraint failed:'):
+                if str(e).startswith(('1062 (23000): Duplicate entry', 'UNIQUE constraint failed:')):
                     self.update_data('channels', **r)
                 else:
                     raise e
@@ -135,9 +154,10 @@ class YTDataBase(object):
             try:
                 self.insert_data('playlists', **r)
             except Exception as e:
-                if str(e).startswith('UNIQUE constraint failed:'):
+                if str(e).startswith(('1062 (23000): Duplicate entry', 'UNIQUE constraint failed:')):
                     self.update_data('playlists', **r)
-                elif str(e).startswith('FOREIGN KEY constraint failed'):
+                elif str(e).startswith(('1452 (23000): Cannot add or update a child row',
+                                        'FOREIGN KEY constraint failed')):
                     st.toast(f':red[{e}]')
                 else:
                     raise e
@@ -152,9 +172,10 @@ class YTDataBase(object):
             try:
                 self.insert_data('videos', **r)
             except Exception as e:
-                if str(e).startswith('UNIQUE constraint failed:'):
+                if str(e).startswith(('1062 (23000): Duplicate entry', 'UNIQUE constraint failed:')):
                     self.update_data('videos', **r)
-                elif str(e).startswith('FOREIGN KEY constraint failed'):
+                elif str(e).startswith(('1452 (23000): Cannot add or update a child row',
+                                        'FOREIGN KEY constraint failed')):
                     st.toast(f':red[{e}]')
                 else:
                     raise e
@@ -170,9 +191,10 @@ class YTDataBase(object):
             try:
                 self.insert_data('comments', **r)
             except Exception as e:
-                if str(e).startswith('UNIQUE constraint failed:'):
+                if str(e).startswith(('1062 (23000): Duplicate entry', 'UNIQUE constraint failed:')):
                     self.update_data('comments', **r)
-                elif str(e).startswith('1452 (23000): Cannot add or update a child row'):
+                elif str(e).startswith(('1452 (23000): Cannot add or update a child row',
+                                        'FOREIGN KEY constraint failed')):
                     st.toast(f':red[{e}]')
                 else:
                     raise e
@@ -337,7 +359,8 @@ def set_creds() -> [YTAPI, YTDataBase]:
     _api = st.session_state.get('yt_api') or YTAPI(st.session_state.yt_api_creds)
     st.session_state['yt_api'] = _api
 
-    _db = st.session_state.get('yt_db') or YTDataBase()
+    st.session_state['yt_db_creds'] = st.session_state.get('yt_db_creds') or dict(st.secrets.YouTubeDataBase)
+    _db = st.session_state.get('yt_db') or YTDataBase(**st.session_state.yt_db_creds)
     st.session_state['yt_db'] = _db
 
     return _api, _db

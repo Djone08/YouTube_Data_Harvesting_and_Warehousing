@@ -18,7 +18,7 @@ if __name__ == '__main__':
         '09.What is the average duration of all videos in each channel, and what are their corresponding channel names?',
         '10.Which videos have the highest number of comments, and what are their corresponding channel names?']
 
-    '# QnA'
+    '# Analysis'
 
     q = st.selectbox('Questions', questions)
 
@@ -31,17 +31,18 @@ if __name__ == '__main__':
               'videoThumbnails': st.column_config.ImageColumn(label='videoThumbnails')}
     elif q == questions[1]:
         df = yt_db.fetch_data(f'''select * from channels where videoCount = (select max(videoCount) from channels)''')
-        col = st.columns([.2, .3, .5])
-        col[1].write(f'''<p>
-                <img src="{df.thumbnails.iloc[0]}"
-                alt="thumbnails" title="{df.id.iloc[0]}" style="border-radius:50%" />
-                </p>
-                ''', unsafe_allow_html=True)
-        col[2].write(f'## {df.title.iloc[0]}')
-        col[2].write(f'Videos Count : **{df.videoCount.iloc[0]}**')
-        # col[1].caption(df.description.iloc[0])
-        channelId = df.id.iloc[0]
-        df = yt_db.fetch_data(f'''select thumbnails, title, description from videos where channelId = {channelId!r}''')
+        if not df.empty:
+            col = st.columns([.2, .3, .5])
+            col[1].write(f'''<p>
+                    <img src="{df.thumbnails.iloc[0]}"
+                    alt="thumbnails" title="{df.id.iloc[0]}" style="border-radius:50%" />
+                    </p>
+                    ''', unsafe_allow_html=True)
+            col[2].write(f'## {df.title.iloc[0]}')
+            col[2].write(f'Videos Count : **{df.videoCount.iloc[0]}**')
+            # col[1].caption(df.description.iloc[0])
+            channelId = df.id.iloc[0]
+            df = yt_db.fetch_data(f'''select thumbnails, title, description from videos where channelId = {channelId!r}''')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
     elif q == questions[2]:
         df = yt_db.fetch_data('''select channels.thumbnails as channelThumbnails,
@@ -69,23 +70,29 @@ if __name__ == '__main__':
         df = yt_db.fetch_data('select thumbnails, title, viewCount from channels')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
     elif q == questions[7]:
-        # df = yt_db.fetch_data('select duration, publishedAt from videos')
-        # print(df, df.dtypes, pd.to_datetime(df.publishedAt), pd.to_timedelta(df.duration))
-        # df = yt_db.fetch_data('''select distinct channels.thumbnails, channels.title from videos
-        # inner join channels on channels.id = videos.channelId where year(videos.publishedAt)="2022"''')
-        df = yt_db.fetch_data('''select distinct channels.thumbnails, channels.title from videos
-        inner join channels on channels.id = videos.channelId
-        where strftime("%Y", videos.publishedAt)="2022"''')
+        if yt_db.db_type == 'mysql':
+            df = yt_db.fetch_data('''select distinct channels.thumbnails, channels.title from videos
+            inner join channels on channels.id = videos.channelId where year(videos.publishedAt)="2022"''')
+        elif yt_db.db_type == 'sqlite':
+            df = yt_db.fetch_data('''select distinct channels.thumbnails, channels.title from videos
+            inner join channels on channels.id = videos.channelId
+            where strftime("%Y", videos.publishedAt)="2022"''')
+        else:
+            df = pd.DataFrame()
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
     elif q == questions[8]:
-        # df = yt_db.fetch_data('''select channels.thumbnails as thumbnails, channels.title as title,
-        # sec_to_time(avg(time_to_sec(videos.duration))) as averageDurationPerVideo from videos
-        # inner join channels where channels.id = videos.channelId
-        # group by channels.id order by averageDurationPerVideo''')
-        df = yt_db.fetch_data('''select channels.thumbnails as thumbnails, channels.title as title,
-        time(cast(avg(unixepoch(videos.duration)) as int), "unixepoch") as averageDurationPerVideo from videos
-        inner join channels where channels.id = videos.channelId 
-        group by channels.id order by averageDurationPerVideo''')
+        if yt_db.db_type == 'mysql':
+            df = yt_db.fetch_data('''select channels.thumbnails as thumbnails, channels.title as title,
+            sec_to_time(avg(time_to_sec(videos.duration))) as averageDurationPerVideo from videos
+            inner join channels where channels.id = videos.channelId
+            group by channels.id order by averageDurationPerVideo''')
+        elif yt_db.db_type == 'sqlite':
+            df = yt_db.fetch_data('''select channels.thumbnails as thumbnails, channels.title as title,
+            time(cast(avg(unixepoch(videos.duration)) as int), "unixepoch") as averageDurationPerVideo from videos
+            inner join channels where channels.id = videos.channelId 
+            group by channels.id order by averageDurationPerVideo''')
+        else:
+            df = pd.DataFrame()
 
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails'),
               'averageDurationPerVideo': st.column_config.TimeColumn(label='averageDurationPerVideo')
@@ -102,7 +109,7 @@ if __name__ == '__main__':
         df = pd.DataFrame()
         cc = {}
 
-    if df.empty and not cc:
+    if df.empty:
         st.info(':blue[Add Channels to the list Using Channel Search]', icon='ℹ️')
     else:
         st.dataframe(df, column_config=cc, hide_index=True)
