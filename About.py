@@ -1,7 +1,8 @@
+import time
 from functools import wraps
 import pandas as pd
 import streamlit as st
-from typing import Literal
+from typing import Literal, Callable
 import sqlite3
 import mysql.connector as db
 from googleapiclient.discovery import build
@@ -28,7 +29,7 @@ class YTDataBase(object):
         self.set_tables()
 
     @staticmethod
-    def with_cursor(func):
+    def with_cursor(func: Callable) -> Callable:
         @wraps(func)
         def wrapper_func(self, *args, **kwargs):
             if self.db_type == 'sqlite':
@@ -217,7 +218,7 @@ class YTAPI(object):
                     q=text).execute()
                 return _res
             except Exception as e:
-                print(e)
+                print(f'function search_list: {e}')
 
     def channel_list(self, _channel_id: str):
         for _yt in self.yt_apis:
@@ -229,7 +230,7 @@ class YTAPI(object):
                 return _res
             except Exception as e:
                 # self.yt_apis.remove(_yt)
-                print(e)
+                print(f'function channel_list: {e}')
 
     def playlists_list(self, **kwargs):
         for _yt in self.yt_apis:
@@ -240,7 +241,7 @@ class YTAPI(object):
                     **kwargs).execute()
                 return _res
             except Exception as e:
-                print(e)
+                print(f'function playlists_list: {e}')
 
     def playlist_items_list(self, _playlist_id: str, _page_token: str | None = None):
         for _yt in self.yt_apis:
@@ -253,7 +254,7 @@ class YTAPI(object):
                     playlistId=_playlist_id).execute()
                 return _res
             except Exception as e:
-                print(e)
+                print(f'function playlist_items_list: {e}')
 
     def videos_list(self, _video_id: str):
         for _yt in self.yt_apis:
@@ -263,7 +264,7 @@ class YTAPI(object):
                     id=_video_id).execute()
                 return _res
             except Exception as e:
-                print(e)
+                print(f'function videos_list: {e}')
 
     def comment_threads_list(self, _channel_id: str, **kwargs):
         for _yt in self.yt_apis:
@@ -275,7 +276,7 @@ class YTAPI(object):
                     **kwargs).execute()
                 return _res
             except Exception as e:
-                print(e)
+                print(f'function comment_threads_list: {e}')
 
     def get_channels_df(self, _channel_id):
         es = '''{'id': x.id, 'thumbnails': x.snippet['thumbnails']['default']['url'],
@@ -321,14 +322,7 @@ class YTAPI(object):
         while res.get('nextPageToken'):
             res = self.playlist_items_list(_playlist_id, res.get('nextPageToken'))
             vid = [x['snippet']['resourceId']['videoId'] for x in res['items']]
-            try:
-                data.extend(self.videos_list(','.join(vid))['items'])
-            except TypeError:
-                print(vid)
-                print('='*100)
-                print(res['items'])
-                print('=' * 100)
-                # data.extend(self.videos_list(','.join(vid))['items'])
+            data.extend(self.videos_list(','.join(vid))['items'])
 
         df = pd.DataFrame(data).apply(lambda x: eval(es), axis=1, result_type='expand')
         if not df.empty:
