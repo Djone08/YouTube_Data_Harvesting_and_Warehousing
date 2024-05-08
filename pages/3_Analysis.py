@@ -1,5 +1,5 @@
 import streamlit as st
-# import pandas as pd
+import pandas as pd
 from About import set_creds, YTDataBase
 
 
@@ -76,18 +76,27 @@ if __name__ == '__main__':
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
         st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[7]:
+        # df = yt_db.fetch_data('select duration, publishedAt from videos')
+        # print(df, df.dtypes, pd.to_datetime(df.publishedAt), pd.to_timedelta(df.duration))
+        # df = yt_db.fetch_data('''select distinct channels.thumbnails, channels.title from videos
+        # inner join channels on channels.id = videos.channelId where year(videos.publishedAt)="2022"''')
         df = yt_db.fetch_data('''select distinct channels.thumbnails, channels.title from videos
-        inner join channels on channels.id = videos.channelId where year(videos.publishedAt)="2022"''')
+        inner join channels on channels.id = videos.channelId
+        where strftime("%Y", videos.publishedAt)="2022"''')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
         st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[8]:
-        df = yt_db.fetch_data('select id, thumbnails, title from channels')
-        _data = [yt_db.fetch_data(f'select duration from videos where channelId = {x!r}') for x in df.id.values]
-        # _data
-        df.loc[:, 'averageDuration'] = [x.duration.sum()/len(x) for x in _data]
-        df.drop('id', axis=1, inplace=True)
+        # df = yt_db.fetch_data('''select channels.thumbnails as thumbnails, channels.title as title,
+        # sec_to_time(avg(time_to_sec(videos.duration))) as averageDurationPerVideo from videos
+        # inner join channels where channels.id = videos.channelId
+        # group by channels.id order by averageDurationPerVideo''')
+        df = yt_db.fetch_data('''select channels.thumbnails as thumbnails, channels.title as title,
+        time(cast(avg(unixepoch(videos.duration)) as int), "unixepoch") as averageDurationPerVideo from videos
+        inner join channels where channels.id = videos.channelId 
+        group by channels.id order by averageDurationPerVideo''')
+
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails'),
-              # 'averageDurationPerVideo': st.column_config.TimeColumn(label='averageDurationPerVideo', step=1)
+              'averageDurationPerVideo': st.column_config.TimeColumn(label='averageDurationPerVideo')
               }
         st.dataframe(df, column_config=cc, hide_index=True)
     elif q == questions[9]:
