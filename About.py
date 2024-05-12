@@ -1,4 +1,3 @@
-import time
 from functools import wraps
 import pandas as pd
 import streamlit as st
@@ -39,6 +38,8 @@ class YTDataBase(object):
                 self.cur.execute('pragma foreign_keys = 1')
             value = func(self, *args, **kwargs)
             self.cur.close()
+            if self.db_type == 'sqlite':
+                self.db.close()
             return value
         return wrapper_func
 
