@@ -70,6 +70,7 @@ def set_row_add(_data: pd.Series):
         if st.session_state.get(f'add_{_data.channelId}'):
             _chn_add_lst = st.session_state.chn_add_lst
             st.session_state.chn_add_lst = [x for x in _chn_add_lst if x.channelId != _data.channelId]
+            st.rerun()
 
         ch_df = pd.DataFrame(st.session_state.chn_add_lst)
         btn_state = True if ch_df.empty else _data.channelId not in ch_df.channelId.values
@@ -101,7 +102,9 @@ def add_to_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
                 yt_db.add_playlists_data(pl_df)
                 s.write('Playlists Data DownLoaded ✔️')
                 s.update(label='Adding Playlist Id in Videos Data...')
-                vi_df = pd.concat([yt_api.get_videos_df(x) for x in pl_df['id']])
+                vi_df = pd.concat([[s.update(label=f'Fetching Videos Data for Playlist {i+1}/{len(pl_df.id)}...'),
+                                    yt_api.get_videos_df(x)][1] for i, x in enumerate(pl_df.id)])
+                s.update(label=f'Updating Playlist ID in Videos data...')
                 yt_db.add_videos_data(vi_df)
                 s.write('Playlist Id Added ✔️')
             else:
@@ -113,6 +116,9 @@ def add_to_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
         else:
             s.write('The Channel Has No Video Uploads ❌')
         s.write('Channel Loaded to Library ✔️')
+        s.update(label='Channel DownLoad Complete')
+    _chn_add_lst = st.session_state.chn_add_lst
+    st.session_state.chn_add_lst = [x for x in _chn_add_lst if x.channelId != _channel_id]
 
 
 if __name__ == '__main__':

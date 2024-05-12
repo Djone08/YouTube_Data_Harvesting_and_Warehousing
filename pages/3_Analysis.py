@@ -12,10 +12,12 @@ if __name__ == '__main__':
         '03.What are the top 10 most viewed videos and their respective channels?',
         '04.How many comments were made on each video, and what are their corresponding video names?',
         '05.Which videos have the highest number of likes, and what are their corresponding channel names?',
-        '06.What is the total number of likes and dislikes for each video, and what are their corresponding video names?',
+        '06.What is the total number of likes and dislikes for each video, '
+        'and what are their corresponding video names?',
         '07.What is the total number of views for each channel, and what are their corresponding channel names?',
         '08.What are the names of all the channels that have published videos in the year 2022?',
-        '09.What is the average duration of all videos in each channel, and what are their corresponding channel names?',
+        '09.What is the average duration of all videos in each channel, '
+        'and what are their corresponding channel names?',
         '10.Which videos have the highest number of comments, and what are their corresponding channel names?']
 
     '# Analysis'
@@ -30,7 +32,8 @@ if __name__ == '__main__':
               'channelTitle': st.column_config.TextColumn(label='channelTitle'),
               'videoThumbnails': st.column_config.ImageColumn(label='videoThumbnails')}
     elif q == questions[1]:
-        df = yt_db.fetch_data(f'''select * from channels where videoCount = (select max(videoCount) from channels)''')
+        df = yt_db.fetch_data(f'''select * from channels
+        where videoCount = (select max(videoCount) from channels)''')
         if not df.empty:
             col = st.columns([.2, .3, .5])
             col[1].write(f'''<p>
@@ -42,7 +45,8 @@ if __name__ == '__main__':
             col[2].write(f'Videos Count : **{df.videoCount.iloc[0]}**')
             # col[1].caption(df.description.iloc[0])
             channelId = df.id.iloc[0]
-            df = yt_db.fetch_data(f'''select thumbnails, title, description from videos where channelId = {channelId!r}''')
+            df = yt_db.fetch_data(f'''select thumbnails, title, description from videos
+            where channelId = {channelId!r}''')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
     elif q == questions[2]:
         df = yt_db.fetch_data('''select channels.thumbnails as channelThumbnails,
@@ -64,7 +68,8 @@ if __name__ == '__main__':
         cc = {'channelThumbnails': st.column_config.ImageColumn(label='channelThumbnails'),
               'videoThumbnails': st.column_config.ImageColumn(label='videoThumbnails')}
     elif q == questions[5]:
-        df = yt_db.fetch_data('select thumbnails, title, (likeCount+dislikeCount) as sumOfLikeAndDislike from videos')
+        df = yt_db.fetch_data('''select thumbnails, title,
+        (likeCount+dislikeCount) as sumOfLikeAndDislike from videos''')
         cc = {'thumbnails': st.column_config.ImageColumn(label='thumbnails')}
     elif q == questions[6]:
         df = yt_db.fetch_data('select thumbnails, title, viewCount from channels')

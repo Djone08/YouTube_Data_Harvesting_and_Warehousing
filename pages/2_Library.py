@@ -24,7 +24,8 @@ def upd_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
                 yt_db.add_playlists_data(pl_df)
                 s.write('Playlists Data Updated ✔️')
                 s.update(label='Adding Playlist Id in Videos Data...')
-                vi_df = pd.concat([yt_api.get_videos_df(x) for x in pl_df['id']])
+                vi_df = pd.concat([[s.update(label=f'Fetching Videos Data for Playlist {i+1}/{len(pl_df.id)}...'),
+                                    yt_api.get_videos_df(x)][1] for i, x in enumerate(pl_df.id)])
                 yt_db.add_videos_data(vi_df)
                 s.write('Playlist Id Updated ✔️')
             else:
@@ -36,6 +37,7 @@ def upd_db(_channel_id: str, _empty: DeltaGenerator | None = st.empty()):
         else:
             s.write('The Channel Has No Video Uploads ❌')
         s.write('Channel Loaded to Library ✔️')
+        s.update(label='Channel Update Complete')
 
 
 def yt_count_converter(n: int):
