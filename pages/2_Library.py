@@ -134,7 +134,7 @@ if __name__ == '__main__':
     '# Channels Library'
     ''
 
-    df = yt_db.fetch_data('select * from channels order by title')
+    df = yt_db.fetch_data('select * from channels order by lower(title)')
     if not df.empty:
         df.apply(lambda x: set_row_lib(x), axis=1)
     else:
