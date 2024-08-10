@@ -11,9 +11,9 @@ This project is designed to build a Streamlit application that enables users to 
  - Data Visualization: Display retrieved data and query results in a user-friendly format within the Streamlit app.
 
 ## App Link
-Click On the link to visit the app
+Click On the [link](https://youtubedataharvestingandwarehousing-ex3vmitcezyqzazh8jjkqe.streamlit.app/) to visit the app
 >[!NOTE]
->In case the app is on sleep (Due to Lack of interaction) click wake up the app to re-start the app.
+In case the app is on sleep (Due to Lack of interaction) click wake up the app to re-start the app.
 ## Project Structure
 `About.py`: Main Streamlit application file.
 `.\pages\1_Add_Channel.py`: Page for Extracting Data by interacting with the `YouTube API`.
